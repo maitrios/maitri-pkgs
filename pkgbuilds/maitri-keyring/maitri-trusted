@@ -1,3 +1,1 @@
-# After generating the maitri signing key, replace the line below with the real fingerprint
-# (40 hex chars, no spaces). Trust level 4 = full trust.
-# <FINGERPRINT>:4:
+05AC791D993E0D13D339806338DC9B1A2DD1FC15:4:
