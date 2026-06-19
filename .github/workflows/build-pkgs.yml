@@ -1,0 +1,56 @@
+name: Build maitri packages
+
+# UNTESTED starting point — debug on the first real run (esp. the GitHub-release-as-pacman-repo
+# .db naming: pacman fetches `maitri.db`, which repo-add creates as a symlink to maitri.db.tar.gz;
+# release assets don't keep symlinks, so we upload the tarball under both names).
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['pkgs-*']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install build tooling
+        run: pacman -Syu --noconfirm --needed base-devel git github-cli
+
+      - name: Prepare non-root builder (makepkg refuses root)
+        run: |
+          useradd -m builder
+          printf 'builder ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder
+          install -d -o builder /work
+          cp -r pkgbuilds /work/pkgbuilds
+          chown -R builder:builder /work
+
+      - name: Import signing key
+        run: printf '%s' "${{ secrets.MAITRI_GPG_PRIVATE_KEY }}" | sudo -u builder gpg --batch --import
+
+      - name: Build, sign, assemble repo db
+        run: |
+          sudo -u builder bash -euo pipefail -c '
+            mkdir -p /work/out
+            for d in /work/pkgbuilds/*/; do
+              ( cd "$d" && makepkg -s --noconfirm --noprogressbar )
+              cp "$d"/*.pkg.tar.zst /work/out/
+            done
+            cd /work/out
+            for p in *.pkg.tar.zst; do gpg --batch --detach-sign --no-armor "$p"; done
+            repo-add maitri.db.tar.gz *.pkg.tar.zst
+            cp maitri.db.tar.gz maitri.db
+            cp maitri.files.tar.gz maitri.files
+          '
+
+      - name: Publish to the stable channel release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd /work/out
+          gh release view stable -R "${{ github.repository }}" >/dev/null 2>&1 \
+            || gh release create stable -R "${{ github.repository }}" -t "maitri packages — stable" -n "Rolling maitri package channel."
+          gh release upload stable -R "${{ github.repository }}" --clobber \
+            maitri.db maitri.db.tar.gz maitri.files maitri.files.tar.gz *.pkg.tar.zst *.sig

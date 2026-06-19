@@ -1,0 +1,17 @@
+# Maintainer: Kindness <ops@kindness.ai>
+pkgname=maitri-keyring
+pkgver=20260619
+pkgrel=1
+pkgdesc='maitri package signing keyring'
+arch=('any')
+url='https://github.com/kindness-ai/maitri'
+license=('MIT')
+install="${pkgname}.install"
+source=('maitri.gpg' 'maitri-trusted' 'maitri-revoked')
+sha256sums=('SKIP' 'SKIP' 'SKIP')
+
+package() {
+  install -Dm644 "${srcdir}/maitri.gpg"     "${pkgdir}/usr/share/pacman/keyrings/maitri.gpg"
+  install -Dm644 "${srcdir}/maitri-trusted" "${pkgdir}/usr/share/pacman/keyrings/maitri-trusted"
+  install -Dm644 "${srcdir}/maitri-revoked" "${pkgdir}/usr/share/pacman/keyrings/maitri-revoked"
+}
