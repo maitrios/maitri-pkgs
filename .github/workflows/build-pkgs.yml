@@ -1,13 +1,12 @@
 name: Build maitri packages
 
-# UNTESTED starting point — debug on the first real run (esp. the GitHub-release-as-pacman-repo
-# .db naming: pacman fetches `maitri.db`, which repo-add creates as a symlink to maitri.db.tar.gz;
-# release assets don't keep symlinks, so we upload the tarball under both names).
-
 on:
   workflow_dispatch:
   push:
     tags: ['pkgs-*']
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -41,8 +40,8 @@ jobs:
             cd /work/out
             for p in *.pkg.tar.zst; do gpg --batch --detach-sign --no-armor "$p"; done
             repo-add maitri.db.tar.gz *.pkg.tar.zst
-            cp maitri.db.tar.gz maitri.db
-            cp maitri.files.tar.gz maitri.files
+            cp --remove-destination maitri.db.tar.gz maitri.db
+            cp --remove-destination maitri.files.tar.gz maitri.files
           '
 
       - name: Publish to the stable channel release
