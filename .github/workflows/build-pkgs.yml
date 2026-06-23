@@ -65,6 +65,9 @@ jobs:
           sudo -u builder bash -euo pipefail -c '
             cd /work/repo
             rm -f maitri-local.* maitri.db* maitri.files*
+            # GitHub release assets cannot contain ":" (pacman epoch) — rename so
+            # the DB %FILENAME% matches the uploaded asset name.
+            for f in *:*; do [ -e "$f" ] && mv -- "$f" "${f//:/.}"; done
             for p in *.pkg.tar.zst; do gpg --batch --detach-sign --no-armor "$p"; done
             repo-add maitri.db.tar.gz *.pkg.tar.zst
             cp --remove-destination maitri.db.tar.gz maitri.db
