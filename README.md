@@ -15,4 +15,3 @@ published to a GitHub Release per channel (`stable`, `edge`).
 
 - **maitri-keyring** — installs the maitri package-signing public key into pacman's keyring; the trust
   anchor for the `[maitri]` repo.
-\
