@@ -10,9 +10,9 @@ permissions:
 
 jobs:
   build:
-    # 16-core larger runner (label: big-boi): linux-ptl is a full kernel compile,
+    # 16-core larger runner (label: big-big): linux-ptl is a full kernel compile,
     # asusctl/supergfxctl are Rust, and the limine hook is a GraalVM native-image.
-    runs-on: big-boi
+    runs-on: big-big
     container: archlinux:latest
     steps:
       - uses: actions/checkout@v4
