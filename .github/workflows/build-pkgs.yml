@@ -19,6 +19,8 @@ jobs:
 
       - name: Install build tooling
         run: |
+          # Parallelize pacman's download streams (per-repo DB + build-dep fetches); Arch ships this off
+          sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 10/' /etc/pacman.conf
           pacman -Syu --noconfirm --needed base-devel git github-cli pacman-contrib
           # Use all cores for compilation (kernel / Rust / native-image builds)
           printf 'MAKEFLAGS="-j%s"\n' "$(nproc)" >> /etc/makepkg.conf
