@@ -2,6 +2,11 @@ name: Build maitri packages
 
 on:
   workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Rebuild every package from scratch (ignore the published cache)"
+        type: boolean
+        default: false
   push:
     tags: ['pkgs-*']
 
@@ -34,36 +39,26 @@ jobs:
           chown -R builder:builder /work
           printf '%s' "${{ secrets.MAITRI_GPG_PRIVATE_KEY }}" | sudo -u builder gpg --batch --import
 
-      - name: Build packages (dependency-resolving rounds)
+      - name: Seed build cache from the published release
+        if: ${{ github.event.inputs.force_rebuild != 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Incremental builds: reuse already-published packages so only changed/new
+          # PKGBUILDs recompile. The "stable" release is the cache.
+          if gh release download stable -R "${{ github.repository }}" -D /work/repo \
+               -p '*.pkg.tar.zst' -p '*.sig' 2>/dev/null; then
+            echo "seeded $(ls /work/repo/*.pkg.tar.zst 2>/dev/null | wc -l) cached packages"
+          else
+            echo "no published release yet — full build"
+          fi
+          chown -R builder:builder /work/repo
+
+      - name: Build packages (incremental, dependency-resolving rounds)
         run: |
           printf '\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n' >> /etc/pacman.conf
-          sudo -u builder bash -euo pipefail -c '
-            repo-add /work/repo/maitri-local.db.tar.gz >/dev/null 2>&1 || true
-            sudo pacman -Sy
-            built=""
-            for round in 1 2 3 4 5 6; do
-              progress=0
-              for d in /work/pkgbuilds/*/; do
-                name=$(basename "$d")
-                case " $built " in *" $name "*) continue ;; esac
-                if ( cd "$d" && makepkg -s --noconfirm --noprogressbar --skippgpcheck ) >/tmp/"$name".log 2>&1; then
-                  cp "$d"/*.pkg.tar.zst /work/repo/ 2>/dev/null || true
-                  repo-add /work/repo/maitri-local.db.tar.gz "$d"/*.pkg.tar.zst >/dev/null 2>&1 || true
-                  sudo pacman -Sy >/dev/null 2>&1 || true
-                  built="$built $name"; progress=1
-                  echo "  built: $name"
-                fi
-              done
-              [ "$progress" -eq 0 ] && break
-            done
-            echo "=== BUILT:$built"
-            echo "=== FAILED (last 4 log lines each):"
-            for d in /work/pkgbuilds/*/; do
-              name=$(basename "$d")
-              case " $built " in *" $name "*) continue ;; esac
-              echo "--- $name ---"; tail -4 /tmp/"$name".log 2>/dev/null || true
-            done
-          '
+          install -o builder -m 755 .github/build-packages.sh /work/build-packages.sh
+          sudo -u builder bash /work/build-packages.sh "${{ github.event.inputs.force_rebuild }}"
 
       - name: Sign + assemble + publish to stable release
         env:
@@ -75,7 +70,8 @@ jobs:
             # GitHub release assets cannot contain ":" (pacman epoch) — rename so
             # the DB %FILENAME% matches the uploaded asset name.
             for f in *:*; do [ -e "$f" ] && mv -- "$f" "${f//:/.}"; done
-            for p in *.pkg.tar.zst; do gpg --batch --detach-sign --no-armor "$p"; done
+            # Sign only packages not already signed (cached ones keep their downloaded .sig).
+            for p in *.pkg.tar.zst; do [ -f "$p.sig" ] || gpg --batch --detach-sign --no-armor "$p"; done
             repo-add maitri.db.tar.gz *.pkg.tar.zst
             cp --remove-destination maitri.db.tar.gz maitri.db
             cp --remove-destination maitri.files.tar.gz maitri.files
