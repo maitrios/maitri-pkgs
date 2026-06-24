@@ -47,7 +47,7 @@ jobs:
           # Incremental builds: reuse already-published packages so only changed/new
           # PKGBUILDs recompile. The "stable" release is the cache.
           if gh release download stable -R "${{ github.repository }}" -D /work/repo \
-               -p '*.pkg.tar.zst' -p '*.sig' 2>/dev/null; then
+               -p '*.pkg.tar.zst' 2>/dev/null; then
             echo "seeded $(ls /work/repo/*.pkg.tar.zst 2>/dev/null | wc -l) cached packages"
           else
             echo "no published release yet — full build"
@@ -70,8 +70,9 @@ jobs:
             # GitHub release assets cannot contain ":" (pacman epoch) — rename so
             # the DB %FILENAME% matches the uploaded asset name.
             for f in *:*; do [ -e "$f" ] && mv -- "$f" "${f//:/.}"; done
-            # Sign only packages not already signed (cached ones keep their downloaded .sig).
-            for p in *.pkg.tar.zst; do [ -f "$p.sig" ] || gpg --batch --detach-sign --no-armor "$p"; done
+            # Re-sign every package each run. A rebuilt package overwrites its .pkg, so a
+            # stale .sig would otherwise linger and fail verification (BAD signature). Cheap.
+            for p in *.pkg.tar.zst; do gpg --batch --yes --detach-sign --no-armor "$p"; done
             repo-add maitri.db.tar.gz *.pkg.tar.zst
             cp --remove-destination maitri.db.tar.gz maitri.db
             cp --remove-destination maitri.files.tar.gz maitri.files
