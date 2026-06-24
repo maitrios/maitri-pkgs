@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Hyprmon
+Comment=A multi-monitor profile manager for Hyprland
+Exec=uwsm app -- hyprmon
+Icon=hyprmon
+Terminal=true
+Type=Application
+Categories=System;Settings;
+Keywords=hyprland;monitor;display;profile;

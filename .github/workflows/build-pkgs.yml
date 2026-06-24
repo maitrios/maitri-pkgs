@@ -10,13 +10,18 @@ permissions:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    # 16-core larger runner: linux-ptl is a full kernel compile, asusctl/supergfxctl
+    # are Rust, and the limine hook is a GraalVM native-image — all CPU/RAM hungry.
+    runs-on: ubuntu-latest-16-cores
     container: archlinux:latest
     steps:
       - uses: actions/checkout@v4
 
       - name: Install build tooling
-        run: pacman -Syu --noconfirm --needed base-devel git github-cli pacman-contrib
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git github-cli pacman-contrib
+          # Use all cores for compilation (kernel / Rust / native-image builds)
+          printf 'MAKEFLAGS="-j%s"\n' "$(nproc)" >> /etc/makepkg.conf
 
       - name: Prepare builder + import signing key
         run: |
