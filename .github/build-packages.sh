@@ -21,12 +21,18 @@ sudo pacman -Sy
 
 # True if every package this PKGBUILD would produce is already cached.
 all_cached() {
-  local out f
+  local out f base matches
   out=$(cd "$1" && makepkg --packagelist 2>/dev/null) || return 1
   [[ -n $out ]] || return 1
   while IFS= read -r p; do
     f=$(basename "$p" | sed 's/:/./g')   # published assets have the epoch ':' renamed to '.'
-    [[ -e /work/repo/$f ]] || return 1
+    # Match on name-ver-rel and glob the arch field. makepkg --packagelist can report a
+    # different arch than the published file (notably 'any' packages), so an exact-name
+    # check would rebuild them every run. The arch-agnostic glob avoids that.
+    base=${f%.pkg.tar.zst}   # strip extension
+    base=${base%-*}          # strip -<arch>
+    matches=(/work/repo/"${base}"-*.pkg.tar.zst)
+    (( ${#matches[@]} )) || return 1
   done <<< "$out"
   return 0
 }
