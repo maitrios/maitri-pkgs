@@ -20,20 +20,23 @@ fi
 sudo pacman -Sy
 
 # True if every package this PKGBUILD would produce is already cached.
+# Derive the expected names by sourcing the PKGBUILD rather than calling
+# `makepkg --packagelist`, which can report the host arch for `any` packages (and
+# otherwise misbehave), making 'any' and split packages rebuild every run. We match on
+# name-ver-rel and glob the arch field so a published '-any' or '-x86_64' both count.
 all_cached() {
-  local out f base matches
-  out=$(cd "$1" && makepkg --packagelist 2>/dev/null) || return 1
-  [[ -n $out ]] || return 1
-  while IFS= read -r p; do
-    f=$(basename "$p" | sed 's/:/./g')   # published assets have the epoch ':' renamed to '.'
-    # Match on name-ver-rel and glob the arch field. makepkg --packagelist can report a
-    # different arch than the published file (notably 'any' packages), so an exact-name
-    # check would rebuild them every run. The arch-agnostic glob avoids that.
-    base=${f%.pkg.tar.zst}   # strip extension
-    base=${base%-*}          # strip -<arch>
-    matches=(/work/repo/"${base}"-*.pkg.tar.zst)
+  local meta n ver matches
+  meta=$(cd "$1" && bash -c '
+    source ./PKGBUILD 2>/dev/null || exit 1
+    v="${epoch:+$epoch:}${pkgver}-${pkgrel}"
+    for n in "${pkgname[@]}"; do printf "%s %s\n" "$n" "$v"; done
+  ') || return 1
+  [[ -n $meta ]] || return 1
+  while read -r n ver; do
+    ver=${ver//:/.}   # published assets have the epoch ':' renamed to '.'
+    matches=(/work/repo/"$n-$ver"-*.pkg.tar.zst)
     (( ${#matches[@]} )) || return 1
-  done <<< "$out"
+  done <<< "$meta"
   return 0
 }
 
