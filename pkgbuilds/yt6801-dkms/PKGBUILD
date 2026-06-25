@@ -3,31 +3,33 @@
 
 _pkgbase=yt6801
 pkgname=yt6801-dkms
-pkgver=1.0.31
-pkgrel=2
+pkgver=1.0.33
+pkgrel=1
 pkgdesc="Kernel module for Motorcomm YT6801 ethernet controller (DKMS)"
 arch=('x86_64')
 url="https://www.motor-comm.com/product/ethernet-control-chip"
 license=('GPL-2.0-or-later')
 depends=('dkms')
+# The vendor download is a zip containing yt_nic_install.sh and the real source
+# tarball (yt6801-<pkgver>.tar.gz, sources at its root). makepkg auto-extracts the
+# zip; prepare() unpacks the inner tarball into src/ and applies the kernel-compat patch.
 source=(${_pkgbase}-${pkgver}.zip::'https://www.motor-comm.com/Cn/Skippower/downloadFile.html?id=1817'
         'patch.diff')
 sha256sums=('023d84095bf560f7d050fc4eba426eab4be622604d6181f604ef7e0e63456715'
-            '6cdb77774c483b640c8f0499fd54a79e773cd3f96a426cd99eec385972d9d5bb')
+            'SKIP')
 
 prepare() {
-  cd ${srcdir}
-  mkdir src
-  tar -zxf ${_pkgbase}-${pkgver}.tar.gz -C src
+  cd "${srcdir}"
+  rm -rf src && mkdir src
+  tar -zxf "${_pkgbase}-${pkgver}.tar.gz" -C src
   patch -p1 < patch.diff
 }
 
 package() {
-  mkdir -p ${pkgdir}/usr/src/${_pkgbase}-${pkgver}
-  
-  install -Dm644 ${srcdir}/src/*.c ${pkgdir}/usr/src/${_pkgbase}-${pkgver}/
-  install -Dm644 ${srcdir}/src/*.h ${pkgdir}/usr/src/${_pkgbase}-${pkgver}/
-  install -Dm644 ${srcdir}/src/Makefile ${pkgdir}/usr/src/${_pkgbase}-${pkgver}/
-  install -Dm644 ${srcdir}/src/dkms.conf ${pkgdir}/usr/src/${_pkgbase}-${pkgver}/
-  install -Dm644 ${srcdir}/src/motorcomm ${pkgdir}/usr/src/${_pkgbase}-${pkgver}/
+  install -dm755 "${pkgdir}/usr/src/${_pkgbase}-${pkgver}"
+  install -m644 "${srcdir}"/src/*.c       "${pkgdir}/usr/src/${_pkgbase}-${pkgver}/"
+  install -m644 "${srcdir}"/src/*.h       "${pkgdir}/usr/src/${_pkgbase}-${pkgver}/"
+  install -m644 "${srcdir}/src/Makefile"  "${pkgdir}/usr/src/${_pkgbase}-${pkgver}/"
+  install -m644 "${srcdir}/src/dkms.conf" "${pkgdir}/usr/src/${_pkgbase}-${pkgver}/"
+  install -m644 "${srcdir}/src/motorcomm" "${pkgdir}/usr/src/${_pkgbase}-${pkgver}/"
 }
