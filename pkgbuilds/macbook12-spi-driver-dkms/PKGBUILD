@@ -1,5 +1,6 @@
-# Maintainer: Christoph Gysin <christoph.gysin@gmail.com>
-# Maintainer: Andrey Melentyev <andrey.melentyev@protonmail.com>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Christoph Gysin <christoph.gysin@gmail.com>
+# Contributor: Andrey Melentyev <andrey.melentyev@protonmail.com>
 _pkgbase=macbook12-spi-driver
 pkgname=(${_pkgbase}-dkms)
 pkgver=0+git.315

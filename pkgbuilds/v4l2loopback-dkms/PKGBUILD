@@ -1,4 +1,5 @@
-# Maintainer: danieltetraquark
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: danieltetraquark
 # Contributor: Romain "Artefact2" Dal Maso <artefact2@gmail.com>
 _pkgbase=v4l2loopback
 pkgname=v4l2loopback-dkms

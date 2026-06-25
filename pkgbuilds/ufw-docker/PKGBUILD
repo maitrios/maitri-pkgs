@@ -1,4 +1,5 @@
-# Maintainer: ifurther <>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: ifurther <>
 # Contributor: Aaronjamt 
 pkgname=ufw-docker
 pkgver=251123

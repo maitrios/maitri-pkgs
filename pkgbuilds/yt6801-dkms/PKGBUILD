@@ -1,4 +1,5 @@
-# Maintainer: Shiina Rikka <rikka@rikka.im>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Shiina Rikka <rikka@rikka.im>
 
 _pkgbase=yt6801
 pkgname=yt6801-dkms

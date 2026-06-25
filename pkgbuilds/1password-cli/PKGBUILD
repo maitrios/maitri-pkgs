@@ -1,4 +1,5 @@
-# Maintainer: slurpee <aur@lylat.io>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: slurpee <aur@lylat.io>
 # Contributors: Felix Seidel, Claudia Pellegrino, Liu Yuxuan
 
 pkgname=1password-cli

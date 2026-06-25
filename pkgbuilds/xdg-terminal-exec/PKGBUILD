@@ -1,4 +1,5 @@
-# Maintainer: Max Gautier <mg@max.gautier.name>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Max Gautier <mg@max.gautier.name>
 pkgname=xdg-terminal-exec
 pkgver=0.14.0
 pkgrel=1

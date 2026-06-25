@@ -1,4 +1,5 @@
-# Maintainer: D. Can Celasun <can[at]dcc[dot]im>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: D. Can Celasun <can[at]dcc[dot]im>
 
 pkgname=visual-studio-code-bin
 _pkgname=visual-studio-code

@@ -1,4 +1,5 @@
-# Maintainer: Eran Sandler <eran@sandler.co.il>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Eran Sandler <eran@sandler.co.il>
 pkgname=hyprmon-bin
 pkgver=0.0.17
 pkgrel=1

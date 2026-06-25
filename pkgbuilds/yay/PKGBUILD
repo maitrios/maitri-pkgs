@@ -1,4 +1,5 @@
-# Maintainer: Jguer <pkgbuilds at jguer.space>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Jguer <pkgbuilds at jguer.space>
 pkgname=yay
 pkgver=12.6.0
 pkgrel=1

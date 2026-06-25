@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Keep the AUR x86_64 checksums and add aarch64 sources. The aarch64
 # artifacts are signed by 1Password's validpgpkeys, so we skip checksums there
-# instead of baking version-specific hashes into Omarchy metadata.
+# instead of baking version-specific hashes into maitri metadata.
 set +u
 CARCH=x86_64 source PKGBUILD
 set -u

@@ -1,4 +1,5 @@
-# Maintainer: Adrián Pérez de Castro
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Adrián Pérez de Castro
 pkgname=ttf-ia-writer
 pkgdesc='Subset of the fonts provided by iA Writer'
 pkgver=20181225

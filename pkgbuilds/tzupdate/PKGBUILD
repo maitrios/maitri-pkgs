@@ -1,4 +1,5 @@
-# Maintainer: Chris Down <chris@chrisdown.name>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Chris Down <chris@chrisdown.name>
 
 pkgname=tzupdate
 pkgver=3.1.0

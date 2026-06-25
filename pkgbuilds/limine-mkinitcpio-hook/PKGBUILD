@@ -1,4 +1,5 @@
-# Maintainer: Zesko
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Zesko
 _pkgname="limine-entry-tool"
 pkgname="limine-mkinitcpio-hook"
 _pkgver=1.36.0

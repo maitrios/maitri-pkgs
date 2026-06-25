@@ -1,4 +1,5 @@
-# Maintainer: Fabian Bornschein <fabiscafe@archlinux.org>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Fabian Bornschein <fabiscafe@archlinux.org>
 # Contributor: Static_Rocket
 
 pkgbase=asusctl

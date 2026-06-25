@@ -1,4 +1,5 @@
-# Maintainer: Gaggory Tsai <gaggery.tsai@intel.com> Spencer Bull <Spencer.Bull@Dell.com>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Gaggory Tsai <gaggery.tsai@intel.com> Spencer Bull <Spencer.Bull@Dell.com>
 # Based on Arch Linux linux package by Jan Alexander Steffens (heftig)
 
 pkgbase=linux-ptl

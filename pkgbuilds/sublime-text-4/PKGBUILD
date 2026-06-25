@@ -1,4 +1,5 @@
-# Maintainer: Manuel Hüsers <aur@huesers.de>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Manuel Hüsers <aur@huesers.de>
 
 pkgname=sublime-text-4
 pkgver=4.4200

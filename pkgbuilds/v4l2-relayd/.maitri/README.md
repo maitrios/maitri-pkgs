@@ -2,7 +2,7 @@
 
 ## Overview
 
-Omarchy carries a small patch for `v4l2-relayd` that resets the output pipeline after a real camera streaming session ends.
+maitri carries a small patch for `v4l2-relayd` that resets the output pipeline after a real camera streaming session ends.
 
 Without this, stale `v4l2loopback` state can cause format negotiation failures when switching between camera apps.
 
@@ -32,7 +32,7 @@ Updates `PKGBUILD` to:
 
 ## pkgrel
 
-`package.json` includes a `pkgrel` suffix/offset so users who already received Omarchy's previous `0.2.0-2` build will upgrade to `0.2.0-2.1`.
+`package.json` includes a `pkgrel` suffix/offset so users who already received the previous `0.2.0-2` build will upgrade to `0.2.0-2.1`.
 
 The `pkgrel` metadata is automatically removed by `bin/sync-aur` when AUR moves to a new `pkgver`.
 

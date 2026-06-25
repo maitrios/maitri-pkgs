@@ -1,11 +1,12 @@
-# Maintainer: Jacob Mink <Jacob[dot]Mink[at]Dell[dot]com>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Jacob Mink <Jacob[dot]Mink[at]Dell[dot]com>
 
 pkgname=dell-xps-touchpad-haptics
 pkgver=1.0.0
 pkgrel=3
-pkgdesc="Synaptics haptic touchpad presets for Dell XPS on Omarchy"
+pkgdesc="Synaptics haptic touchpad presets for Dell XPS"
 arch=('x86_64')
-url="https://github.com/omacom-io/omarchy-pkgs"
+url="https://github.com/kindness-ai/maitri-pkgs"
 license=('MIT')
 depends=('python')
 conflicts=('omarchy-dell-haptic-touchpad')

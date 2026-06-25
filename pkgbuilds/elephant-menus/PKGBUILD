@@ -1,4 +1,5 @@
-# Maintainer: Andrej Benz <hello[at]benz[dot]dev>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Andrej Benz <hello[at]benz[dot]dev>
 
 pkgname=elephant-menus
 pkgver=2.21.0

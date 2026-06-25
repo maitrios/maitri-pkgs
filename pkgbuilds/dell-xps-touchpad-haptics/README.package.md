@@ -1,8 +1,7 @@
 # dell-xps-touchpad-haptics
 
 This package installs the Dell XPS Synaptics haptic touchpad daemon, its
-systemd service, and a small CLI for switching between Omarchy's preset haptic
-levels.
+systemd service, and a small CLI for switching between preset haptic levels.
 
 What it installs:
 
@@ -14,7 +13,7 @@ What it installs:
 What the pacman install hook does:
 
 - picks a desktop user and writes `/etc/dell-xps-touchpad-haptics.env`
-- creates `~/.config/omarchy/dell-haptic.conf` if needed
+- creates `~/.config/maitri/dell-haptic.conf` if needed
 - enables the service and restarts it when a running systemd manager is available
 
 Usage:

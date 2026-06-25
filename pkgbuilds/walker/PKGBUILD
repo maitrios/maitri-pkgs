@@ -1,4 +1,5 @@
-# Maintainer: Andrej Benz <hello[at]benz[dot]dev>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: Andrej Benz <hello[at]benz[dot]dev>
 
 pkgname=walker
 pkgver=2.16.2

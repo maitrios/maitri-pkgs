@@ -1,5 +1,6 @@
-# Maintainer: drakkan <nicola.murino at gmail dot com>
-# Maintainer: Chris Billington <chrisjbillington@gmail.com>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: drakkan <nicola.murino at gmail dot com>
+# Contributor: Chris Billington <chrisjbillington@gmail.com>
 pkgbase=yaru
 pkgname=('yaru-sound-theme'
          'yaru-gtk-theme'

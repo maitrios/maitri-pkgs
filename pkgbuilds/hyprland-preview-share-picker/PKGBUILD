@@ -1,4 +1,5 @@
-# Maintainer: wysbd <aur@wysbd.dev>
+# Maintainer: Kindness <hello@kindness.ai>
+# Contributor: wysbd <aur@wysbd.dev>
 
 pkgname="hyprland-preview-share-picker"
 pkgver=0.2.1
