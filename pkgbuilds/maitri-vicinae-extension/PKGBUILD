@@ -1,0 +1,30 @@
+# Maintainer: Kindness <hello@kindness.ai>
+
+# shellcheck disable=SC2034,SC2154,SC2164
+
+# The prebuilt maitri Vicinae extension bundle, shipped through the [maitri] channel
+# so it lands in the offline ISO mirror. It installs to a system location;
+# `maitri-refresh-vicinae-extension` copies it into the user's Vicinae extensions dir
+# (Vicinae only loads extensions from ~/.local/share/vicinae/extensions).
+pkgname=maitri-vicinae-extension
+pkgver=0.6.0
+pkgrel=1
+pkgdesc="maitri control menu + keybindings extension for Vicinae"
+arch=('any')
+url="https://github.com/kindness-ai/vicinae-maitri"
+license=('MIT')
+depends=('vicinae')
+
+_asset="maitri-vicinae-extension.tar.gz"
+noextract=("$pkgname-$pkgver.tar.gz")
+source=("$pkgname-$pkgver.tar.gz::${url}/releases/download/v${pkgver}/${_asset}")
+
+# Matches maitri-vicinae-extension.tar.gz.sha256 from the vicinae-maitri v$pkgver release.
+sha256sums=('51c4592dce84a652ad13ecce72952cca648fcf1aa9448be7213d2e7321583469')
+
+package() {
+  local dest="$pkgdir/usr/share/maitri/vicinae-extension"
+  install -d "$dest"
+  # The release tarball unpacks directly to package.json + *.js + assets/ + icon.png.
+  tar -xzf "$srcdir/$pkgname-$pkgver.tar.gz" -C "$dest"
+}
