@@ -68,6 +68,12 @@ jobs:
             # GitHub release assets cannot contain ":" (pacman epoch) — rename so
             # the DB %FILENAME% matches the uploaded asset name.
             for f in *:*; do [ -e "$f" ] && mv -- "$f" "${f//:/.}"; done
+            # Prune superseded versions so the release does not accumulate stale packages
+            # across runs: a rebuilt PKGBUILD leaves the previous .pkg.tar.zst behind (the
+            # cache seed re-downloads it), so keep only the newest build of each package.
+            paccache --remove --keep 1 --nocolor --cachedir . || true
+            # paccache only deletes the package files; drop any now-orphaned signatures.
+            for s in *.sig; do [ -e "${s%.sig}" ] || rm -f "$s"; done
             # Re-sign every package each run. A rebuilt package overwrites its .pkg, so a
             # stale .sig would otherwise linger and fail verification (BAD signature). Cheap.
             for p in *.pkg.tar.zst; do gpg --batch --yes --detach-sign --no-armor "$p"; done
@@ -80,3 +86,14 @@ jobs:
             || gh release create stable -R "${{ github.repository }}" -t "maitri packages — stable" -n "Rolling maitri package channel."
           gh release upload stable -R "${{ github.repository }}" --clobber \
             maitri.db maitri.db.tar.gz maitri.files maitri.files.tar.gz *.pkg.tar.zst *.sig
+          # Delete any release asset no longer present locally — removes versions that
+          # were superseded and pruned this run (--clobber only overwrites same-named
+          # assets, it never deletes ones we stopped producing).
+          ls > /tmp/keep.txt
+          gh release view stable -R "${{ github.repository }}" --json assets -q '.assets[].name' \
+            | while read -r asset; do
+                grep -qxF "$asset" /tmp/keep.txt || {
+                  echo "deleting stale asset: $asset"
+                  gh release delete-asset stable "$asset" -R "${{ github.repository }}" -y
+                }
+              done
