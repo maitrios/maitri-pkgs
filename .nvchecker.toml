@@ -1,0 +1,174 @@
+# nvchecker config for the maitri package repo.
+#
+# Most packages here mirror an AUR recipe, so the AUR is the actionable baseline:
+# "the AUR moved, we should re-sync + rebuild". Those use source = "aur" with
+# strip_release = true so the reported version drops the "-pkgrel" and compares
+# cleanly against our PKGBUILD pkgver. Packages with no AUR counterpart track their
+# upstream Git host directly.
+#
+# Usage: scripts/check-updates   (seeds versions from the PKGBUILDs, then runs this)
+# Manual: nvchecker -c .nvchecker.toml && nvcmp -c .nvchecker.toml
+#
+# Caveats:
+#   - strip_release hides AUR pkgrel-only bumps (rebuilds without a new pkgver).
+#   - epoch packages (spotify) report the "epoch:" prefix, so they read as behind
+#     even when current — ignore that one line.
+#   - GitHub entries are unauthenticated; if you hit rate limits set a keyfile (see
+#     https://nvchecker.readthedocs.io and add `keyfile` under [__config__]).
+
+[__config__]
+oldver = ".nvchecker/oldver.json"
+newver = ".nvchecker/newver.json"
+
+# --- AUR-tracked (section name == AUR pkgbase) -------------------------------
+[1password-beta]
+source = "aur"
+strip_release = true
+
+[1password-cli]
+source = "aur"
+strip_release = true
+
+[asusctl]
+source = "aur"
+strip_release = true
+
+[claude-code]
+source = "aur"
+strip_release = true
+
+[elephant]
+source = "aur"
+strip_release = true
+# elephant-{all,archlinuxpkgs,bluetooth,calc,clipboard,desktopapplications,files,
+# menus,providerlist,runner,symbols,todo,unicode,websearch} are split outputs of
+# this same source — they version-lock to elephant, so only check it once.
+
+[helium-browser-bin]
+source = "aur"
+strip_release = true
+
+[hyprmon-bin]
+source = "aur"
+strip_release = true
+
+[lib32-nvidia-580xx-utils]
+source = "aur"
+strip_release = true
+
+[limine-mkinitcpio-hook]
+source = "aur"
+strip_release = true
+
+[limine-snapper-sync]
+source = "aur"
+strip_release = true
+
+[localsend-bin]
+source = "aur"
+strip_release = true
+
+[macbook12-spi-driver-dkms]
+source = "aur"
+strip_release = true
+
+[nvidia-580xx-utils]
+source = "aur"
+strip_release = true
+
+[pinta]
+source = "aur"
+strip_release = true
+
+[python-terminaltexteffects]
+source = "aur"
+strip_release = true
+
+[spotify]
+source = "aur"
+strip_release = true
+
+[sublime-text-4]
+source = "aur"
+strip_release = true
+
+[supergfxctl]
+source = "aur"
+strip_release = true
+
+[ttf-ia-writer]
+source = "aur"
+strip_release = true
+
+[tuxedo-drivers-nocompatcheck-dkms]
+source = "aur"
+strip_release = true
+
+[typora]
+source = "aur"
+strip_release = true
+
+[tzupdate]
+source = "aur"
+strip_release = true
+
+[ufw-docker]
+source = "aur"
+strip_release = true
+
+[v4l2-relayd]
+source = "aur"
+strip_release = true
+
+[visual-studio-code-bin]
+source = "aur"
+strip_release = true
+
+[walker]
+source = "aur"
+strip_release = true
+
+[warp-terminal-bin]
+source = "aur"
+strip_release = true
+
+[xdg-terminal-exec]
+source = "aur"
+strip_release = true
+
+[yaru-icon-theme]
+source = "aur"
+strip_release = true
+
+[yay]
+source = "aur"
+strip_release = true
+
+[yt6801-dkms]
+source = "aur"
+strip_release = true
+
+# --- No AUR counterpart: track upstream directly -----------------------------
+[asdcontrol]
+source = "github"
+github = "omakasui/asdcontrol"
+use_max_tag = true
+prefix = "v"
+
+[hyprland-preview-share-picker]
+source = "github"
+github = "WhySoBad/hyprland-preview-share-picker"
+use_max_tag = true
+prefix = "v"
+
+[v4l2loopback-dkms]
+source = "github"
+github = "umlaeute/v4l2loopback"
+use_max_tag = true
+prefix = "v"
+
+# --- Local / custom: intentionally not tracked -------------------------------
+# dell-xps-touchpad-haptics  — maitri-internal package, no upstream release feed.
+# intel-ipu7-camera          — pinned personal fork (TsaiGaggery/hurrican_omarchy_enabling).
+# linux-ptl                  — custom kernel build, versioned against archlinux/linux manually.
+# maitri-keyring             — date-versioned internal keyring, bumped on key rotation.

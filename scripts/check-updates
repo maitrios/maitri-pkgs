@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Report which PKGBUILDs are behind their upstream/AUR version.
+#
+# nvchecker fetches the latest upstream version of each package; nvcmp diffs that
+# against a baseline. We seed the baseline from the current PKGBUILD pkgvers, so the
+# output is exactly "what we ship" vs "what's upstream now".
+set -euo pipefail
+
+repo_root=$(cd "$(dirname "$0")/.." && pwd)
+cd "$repo_root"
+
+for tool in nvchecker nvcmp; do
+  command -v "$tool" >/dev/null || {
+    echo "error: $tool not found — install with: sudo pacman -S nvchecker" >&2
+    exit 1
+  }
+done
+
+mkdir -p .nvchecker
+
+# 1. Baseline = the evaluated pkgver of every PKGBUILD (sourced so computed versions
+#    like 1password-beta's _tarver and limine-mkinitcpio-hook's _pkgver resolve).
+python3 - <<'PY' > .nvchecker/oldver.json
+import json, os, subprocess, pathlib
+
+data = {}
+for pkgbuild in sorted(pathlib.Path("pkgbuilds").glob("*/PKGBUILD")):
+    name = pkgbuild.parent.name
+    ver = subprocess.run(
+        ["bash", "-c", f'source "{pkgbuild}" >/dev/null 2>&1; echo "$pkgver"'],
+        env={**os.environ, "CARCH": "x86_64"},
+        capture_output=True, text=True,
+    ).stdout.strip()
+    if ver:
+        data[name] = {"version": ver}
+print(json.dumps({"version": 2, "data": data}, indent=2))
+PY
+
+# 2. Fetch latest upstream/AUR versions.
+nvchecker -c .nvchecker.toml
+
+# 3. Diff: anything nvcmp prints is behind (or otherwise diverged from) upstream.
+echo
+echo "── Packages behind upstream (current → latest) ──"
+if ! nvcmp -c .nvchecker.toml; then
+  : # nvcmp exits non-zero when there are differences; that's expected output, not an error
+fi
