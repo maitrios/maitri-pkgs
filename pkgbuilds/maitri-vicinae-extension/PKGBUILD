@@ -22,7 +22,7 @@ noextract=("$pkgname-$pkgver.tar.gz")
 source=("$pkgname-$pkgver.tar.gz::${url}/releases/download/v${pkgver}/${_asset}")
 
 # From maitri-vicinae-extension.tar.gz.sha256 on the maitri-vicinae v$pkgver release.
-sha256sums=('b8af2c133aec33c9c667da04f584fd03dfbc81e3efbd6da00cfe98820cf1d83d')
+sha256sums=('1672b1a8ab76506e44d2ae273374330d3af69a3339249182dd160aa5cea459c6')
 
 package() {
   local dest="$pkgdir/usr/share/maitri/vicinae-extension"
