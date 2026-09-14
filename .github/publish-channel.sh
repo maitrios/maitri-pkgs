@@ -25,6 +25,17 @@ fi
 # %FILENAME% matches the uploaded asset name.
 for f in *:*; do [[ -e $f ]] && mv -- "$f" "${f//:/.}"; done
 
+# Drop packages whose recipe no longer exists; the cache seed would otherwise
+# carry a retired package on the channel forever.
+if [[ -n ${PKGBUILDS_DIR:-} && -d $PKGBUILDS_DIR ]]; then
+  for p in *.pkg.tar.zst; do
+    base=$(bsdtar -xOf "$p" .PKGINFO 2>/dev/null | sed -n 's/^pkgbase = //p' | head -1)
+    [[ -n $base && ! -d $PKGBUILDS_DIR/$base ]] || continue
+    echo "retired recipe $base: dropping $p"
+    rm -f -- "$p" "$p.sig"
+  done
+fi
+
 # Keep only the newest build of each package; a rebuilt PKGBUILD leaves the
 # previous version behind (the cache seed re-downloads it).
 paccache --remove --keep 1 --nocolor --cachedir . || true
