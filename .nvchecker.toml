@@ -261,23 +261,8 @@ github = "herdrdev/herdr"
 use_max_tag = true
 prefix = "v"
 
-[omacalc]
-source = "github"
-github = "omacom-io/omacalc"
-use_max_tag = true
-prefix = "v"
 
-[omacut]
-source = "github"
-github = "omacom-io/omacut"
-use_max_tag = true
-prefix = "v"
 
-[omawrite]
-source = "github"
-github = "omacom-io/omawrite"
-use_max_tag = true
-prefix = "v"
 
 [ttfx]
 source = "github"
@@ -291,23 +276,8 @@ github = "jondkinney/tensaku"
 use_max_tag = true
 prefix = "v"
 
-[aether]
-source = "github"
-github = "omacom/aether"
-use_max_tag = true
-prefix = "v"
 
-[cliamp]
-source = "github"
-github = "bjarneo/cliamp"
-use_max_tag = true
-prefix = "v"
 
-[tobi-try]
-source = "github"
-github = "tobi/try"
-use_max_tag = true
-prefix = "v"
 
 [mise-bin]
 source = "github"

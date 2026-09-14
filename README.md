@@ -28,7 +28,7 @@ stable|edge` switches a machine between the two.
 - **maitri-keyring** — the signing key, trust anchor for the repo. **maitri-nvim** — LazyVim setup.
   **maitri-fish** — fish functions and completions (maitrios/maitri-fish).
 - Everything else mirrors an AUR or vendor recipe that maitri's default install or an opt-in menu
-  entry needs: launcher (vicinae-bin, maitri-vicinae-extension), Helium, editors, the oma* apps,
+  entry needs: launcher (vicinae-bin, maitri-vicinae-extension), Helium, editors, herdr, ttfx, tensaku,
   hardware drivers, gaming and AI extras. Most are copied from
   [omarchy-pkgs](https://github.com/omacom/omarchy-pkgs) and refreshed from there.
 
