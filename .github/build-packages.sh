@@ -3,12 +3,42 @@
 #
 # /work/repo is pre-seeded with the already-published packages (downloaded from the
 # "stable" release). Any package whose exact pkgver-pkgrel output is already present
-# is skipped, so only changed/new PKGBUILDs recompile. Pass "true" as $1 to force a
-# full rebuild (the seed step is skipped by the workflow in that case).
+# is skipped, so only changed/new PKGBUILDs recompile.
+#
+#   FORCE=true       rebuild everything (the workflow skips the cache seed then)
+#   LANE=core|heavy  core builds everything except the heavy lane and the dev pair;
+#                    heavy builds only the long compiles listed in HEAVY
+#   ONLY="a b"       build exactly these packages (workflow_dispatch `packages`)
+#   EXCLUDE="a b"    never build these here (the dev pair has its own workflow)
+#
+# Every package built in this run is listed in /work/built.txt so the workflow
+# uploads only new artifacts, never the seeded cache.
 set -uo pipefail
-FORCE="${1:-false}"
+FORCE="${FORCE:-${1:-false}}"
+LANE="${LANE:-core}"
+ONLY="${ONLY:-}"
+EXCLUDE="${EXCLUDE:-maitri-dev maitri-settings-dev}"
 cd /work/repo
 shopt -s nullglob
+
+# Long compiles get their own runner so a full rebuild of the rest never waits
+# on a kernel build.
+HEAVY="linux-ptl sunshine"
+# VCS packages with a pkgver() function look "uncached" on every run; they only
+# build when named explicitly or on a forced rebuild.
+ON_DEMAND="libretro-cap32-git libretro-fbneo-git libretro-uae-git libretro-vice-git libretro-database-git retroarch-joypad-autoconfig-git libfprint-git"
+
+in_list() { case " $2 " in *" $1 "*) return 0 ;; esac; return 1; }
+
+selected() {
+  local name=$1
+  in_list "$name" "$EXCLUDE" && return 1
+  if [[ -n $ONLY ]]; then in_list "$name" "$ONLY"; return; fi
+  if [[ $LANE == heavy ]]; then in_list "$name" "$HEAVY"; return; fi
+  in_list "$name" "$HEAVY" && return 1
+  if in_list "$name" "$ON_DEMAND" && [[ $FORCE != true ]]; then return 1; fi
+  return 0
+}
 
 # Seed the local repo DB from cached packages so dependencies resolve without rebuilds.
 cached=(/work/repo/*.pkg.tar.zst)
@@ -40,17 +70,23 @@ all_cached() {
   return 0
 }
 
+: >/work/built.txt
 built=""
+skipped=""
 for round in 1 2 3 4 5 6; do
   progress=0
   for d in /work/pkgbuilds/*/; do
     name=$(basename "$d")
-    case " $built " in *" $name "*) continue ;; esac
+    case " $built $skipped " in *" $name "*) continue ;; esac
+    if ! selected "$name"; then
+      skipped="$skipped $name"; continue
+    fi
     if [[ $FORCE != true ]] && all_cached "$d"; then
       echo "  cached: $name"; built="$built $name"; progress=1; continue
     fi
     if ( cd "$d" && makepkg -s --noconfirm --noprogressbar --skippgpcheck ) >/tmp/"$name".log 2>&1; then
       cp "$d"/*.pkg.tar.zst /work/repo/ 2>/dev/null || true
+      for pkg in "$d"/*.pkg.tar.zst; do basename "$pkg" >>/work/built.txt; done
       repo-add /work/repo/maitri-local.db.tar.gz "$d"/*.pkg.tar.zst >/dev/null 2>&1 || true
       sudo pacman -Sy >/dev/null 2>&1 || true
       built="$built $name"; progress=1; echo "  built: $name"
@@ -59,10 +95,14 @@ for round in 1 2 3 4 5 6; do
   [[ $progress -eq 0 ]] && break
 done
 
-echo "=== BUILT/CACHED:$built"
+echo "=== LANE=$LANE BUILT/CACHED:$built"
+echo "=== SKIPPED (other lane / on demand / excluded):$skipped"
+failed=0
 echo "=== FAILED (last 4 log lines each):"
 for d in /work/pkgbuilds/*/; do
   name=$(basename "$d")
-  case " $built " in *" $name "*) continue ;; esac
+  case " $built $skipped " in *" $name "*) continue ;; esac
+  failed=1
   echo "--- $name ---"; tail -4 /tmp/"$name".log 2>/dev/null || true
 done
+exit $failed

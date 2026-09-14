@@ -1,0 +1,152 @@
+#!/bin/bash
+# Pin the maitri release pair (maitri + maitri-settings) to a maitri tag.
+#
+#   scripts/bump-maitri vX.Y.Z [--rebuild] [--dry-run] [--no-commit]
+#   scripts/bump-maitri self-test
+#
+# Rewrites _tag/_commit/pkgver/pkgrel in both PKGBUILDs in lockstep, syncs the
+# dev pair's _pkgver_base, and commits "Release maitri X.Y.Z". Pushing main
+# then triggers build-pkgs.yml, which publishes stable and edge.
+#
+# Versioning rules (pacman vercmp): pre-releases use the attached form
+# X.Y.ZrcN, never X.Y.Z-rc1 or X.Y.Z.rc1 (those sort after the release).
+# pkgrel resets to 1 on a new pkgver; --rebuild bumps pkgrel for the same tag.
+
+set -euo pipefail
+
+ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+SOURCE_REPO=https://github.com/kindness-ai/maitri.git
+STABLE_DB=https://github.com/kindness-ai/maitri-pkgs/releases/download/stable/maitri.db.tar.gz
+PAIR=(maitri maitri-settings)
+DEV_PAIR=(maitri-dev maitri-settings-dev)
+
+fail() { echo "bump-maitri: $*" >&2; exit 1; }
+
+# vX.Y.Z -> X.Y.Z ; vX.Y.Z-rc1 / vX.Y.Zrc1 -> X.Y.Zrc1
+normalize_tag() {
+  local tag=$1 base pre
+  [[ $tag =~ ^v([0-9]+\.[0-9]+\.[0-9]+)(-?(rc[0-9]+))?$ ]] || return 1
+  base=${BASH_REMATCH[1]}
+  pre=${BASH_REMATCH[3]:-}
+  printf '%s%s\n' "$base" "$pre"
+}
+
+version_base() { printf '%s\n' "${1%%rc*}"; }
+
+resolve_tag_commit() {
+  local tag=$1 line
+  line=$(git ls-remote "$SOURCE_REPO" "refs/tags/$tag^{}" "refs/tags/$tag" | head -1) || true
+  [[ -n $line ]] || fail "tag $tag not found on $SOURCE_REPO (push the tag first)"
+  printf '%s\n' "${line%%$'\t'*}"
+}
+
+published_stable_version() {
+  local tmp
+  tmp=$(mktemp -d)
+  if curl -fsSL "$STABLE_DB?nocache=$(date +%s)" -o "$tmp/maitri.db.tar.gz" 2>/dev/null; then
+    tar -xzOf "$tmp/maitri.db.tar.gz" --wildcards 'maitri-[0-9]*/desc' 2>/dev/null |
+      awk '/^%VERSION%$/ { getline; print; exit }'
+  fi
+  rm -rf "$tmp"
+}
+
+current_field() { sed -nE "s/^$2=['\"]?([^'\"]*)['\"]?$/\1/p" "$ROOT/pkgbuilds/$1/PKGBUILD" | head -1; }
+
+guard_lockstep() {
+  local f a b
+  for f in _tag _commit pkgver pkgrel; do
+    a=$(current_field maitri "$f"); b=$(current_field maitri-settings "$f")
+    [[ $a == "$b" ]] || fail "maitri and maitri-settings disagree on $f ($a vs $b); fix by hand first"
+  done
+}
+
+guard_clean_tree() {
+  [[ -z $(git -C "$ROOT" status --porcelain -- pkgbuilds/maitri pkgbuilds/maitri-settings pkgbuilds/maitri-dev pkgbuilds/maitri-settings-dev) ]] ||
+    fail "the release PKGBUILDs have uncommitted changes"
+}
+
+rewrite_pkgbuild() {
+  local pkg=$1 tag=$2 commit=$3 pkgver=$4 pkgrel=$5 file="$ROOT/pkgbuilds/$1/PKGBUILD"
+  sed -i -E \
+    -e "s|^_tag='[^']*'|_tag='$tag'|" \
+    -e "s|^_commit='[^']*'|_commit='$commit'|" \
+    -e "s|^pkgver=.*|pkgver=$pkgver|" \
+    -e "s|^pkgrel=.*|pkgrel=$pkgrel|" \
+    "$file"
+}
+
+rewrite_dev_base() {
+  local pkg=$1 base=$2 tag=$3 file="$ROOT/pkgbuilds/$1/PKGBUILD"
+  sed -i -E -e "s|^_pkgver_base=.*|_pkgver_base=$base|" -e "s|^_pkgver_base_tag=.*|_pkgver_base_tag=$tag|" "$file"
+}
+
+self_test() {
+  [[ $(normalize_tag v0.2.0) == 0.2.0 ]] || fail "normalize_tag v0.2.0"
+  [[ $(normalize_tag v0.2.0-rc1) == 0.2.0rc1 ]] || fail "normalize_tag v0.2.0-rc1"
+  [[ $(normalize_tag v0.2.0rc2) == 0.2.0rc2 ]] || fail "normalize_tag v0.2.0rc2"
+  ! normalize_tag 0.2.0 >/dev/null || fail "normalize_tag rejects tags without v"
+  ! normalize_tag v0.2 >/dev/null || fail "normalize_tag rejects short versions"
+  [[ $(version_base 0.2.0rc1) == 0.2.0 ]] || fail "version_base"
+  [[ $(vercmp 0.2.0rc1 0.2.0) -lt 0 ]] || fail "attached rc sorts before the release"
+  guard_lockstep
+  echo "bump-maitri: self-test ok"
+}
+
+if [[ ${1:-} == self-test ]]; then self_test; exit 0; fi
+
+tag=${1:-}
+[[ -n $tag ]] || { sed -n '2,12p' "$0"; exit 1; }
+shift
+rebuild=0 dry_run=0 no_commit=0
+while (( $# )); do
+  case "$1" in
+    --rebuild) rebuild=1 ;;
+    --dry-run) dry_run=1 ;;
+    --no-commit) no_commit=1 ;;
+    *) fail "unknown option $1" ;;
+  esac
+  shift
+done
+
+command -v vercmp >/dev/null || fail "vercmp (pacman) is required"
+pkgver=$(normalize_tag "$tag") || fail "tag must look like vX.Y.Z or vX.Y.Z-rcN"
+commit=$(resolve_tag_commit "$tag")
+guard_lockstep
+(( dry_run )) || guard_clean_tree
+
+current_ver=$(current_field maitri pkgver)
+current_rel=$(current_field maitri pkgrel)
+current_commit=$(current_field maitri _commit)
+published=$(published_stable_version || true)
+
+if (( rebuild )); then
+  [[ $pkgver == "$current_ver" ]] || fail "--rebuild needs the currently pinned tag ($current_ver), got $pkgver"
+  pkgrel=$((current_rel + 1))
+else
+  if [[ $pkgver == "$current_ver" ]]; then
+    [[ $commit != "$current_commit" ]] || fail "$tag is already pinned at pkgrel $current_rel; use --rebuild to repackage"
+    pkgrel=$((current_rel + 1))
+  else
+    (( $(vercmp "$pkgver" "$current_ver") > 0 )) || fail "$pkgver does not sort after the pinned $current_ver"
+    pkgrel=1
+  fi
+fi
+if [[ -n $published ]]; then
+  (( $(vercmp "$pkgver-$pkgrel" "$published") > 0 )) || fail "$pkgver-$pkgrel does not sort after the published stable $published"
+fi
+
+echo "pin:    $tag -> $commit"
+echo "pkgver: $pkgver-$pkgrel (was $current_ver-$current_rel${published:+, published $published})"
+(( dry_run )) && exit 0
+
+for pkg in "${PAIR[@]}"; do rewrite_pkgbuild "$pkg" "$tag" "$commit" "$pkgver" "$pkgrel"; done
+for pkg in "${DEV_PAIR[@]}"; do rewrite_dev_base "$pkg" "$(version_base "$pkgver")" "$tag"; done
+guard_lockstep
+
+if (( no_commit )); then
+  echo "PKGBUILDs rewritten; not committed"
+else
+  git -C "$ROOT" add pkgbuilds/maitri pkgbuilds/maitri-settings pkgbuilds/maitri-dev pkgbuilds/maitri-settings-dev
+  git -C "$ROOT" commit -q -m "Release maitri $pkgver-$pkgrel"
+  echo "committed; push main to publish"
+fi

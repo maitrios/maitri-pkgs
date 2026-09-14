@@ -1,0 +1,80 @@
+name: Build maitri-dev for edge
+
+# Every push to kindness-ai/maitri main (via its notify-pkgs.yml) becomes a
+# maitri-dev + maitri-settings-dev build published to the edge channel. The
+# six-hourly schedule is the fallback when a dispatch is missed.
+
+on:
+  repository_dispatch:
+    types: [maitri-main-push]
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-edge
+  cancel-in-progress: false
+
+jobs:
+  build-dev:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve the maitri commit to build
+        id: sha
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pacman -Syu --noconfirm --needed git github-cli
+          sha="${{ github.event.client_payload.sha }}"
+          [[ -n $sha ]] || sha=$(git ls-remote https://github.com/kindness-ai/maitri.git refs/heads/main | cut -f1)
+          short=${sha:0:7}
+          current=$(gh release view edge -R "${{ github.repository }}" --json assets -q '.assets[].name' 2>/dev/null | grep -oE '^maitri-dev-[^ ]*\.g[0-9a-f]{7}' | grep -oE 'g[0-9a-f]{7}$' | head -1 || true)
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          if [[ $current == "g$short" ]]; then
+            echo "edge already carries maitri-dev at $short"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build the dev pair
+        if: steps.sha.outputs.skip != 'true'
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git pacman-contrib
+          useradd -m builder
+          printf 'builder ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder
+          install -d -o builder /work/repo
+          cp -r pkgbuilds/maitri-settings-dev pkgbuilds/maitri-dev /work/
+          chown -R builder:builder /work
+          printf '\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n' >> /etc/pacman.conf
+          # maitri-settings-dev first: maitri-dev depends on it, and the local repo
+          # is how makepkg -s finds a package that is not published yet.
+          sudo -u builder bash -euo pipefail -c '
+            for p in maitri-settings-dev maitri-dev; do
+              cd /work/$p
+              MAITRI_DEV_COMMIT="${{ steps.sha.outputs.sha }}" makepkg -s --noconfirm --noprogressbar --skippgpcheck
+              cp ./*.pkg.tar.zst /work/repo/
+              repo-add /work/repo/maitri-local.db.tar.gz ./*.pkg.tar.zst >/dev/null
+              sudo pacman -Sy >/dev/null
+            done
+          '
+          rm -f /work/repo/maitri-local.*
+
+      - name: Publish to edge
+        if: steps.sha.outputs.skip != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          pacman -Syu --noconfirm --needed github-cli gnupg
+          gh release download edge -R "${{ github.repository }}" -D /work/repo -p '*.pkg.tar.zst' 2>/dev/null || true
+          useradd -m publisher
+          chown -R publisher:publisher /work/repo
+          printf '%s' "${{ secrets.MAITRI_GPG_PRIVATE_KEY }}" | sudo -u publisher gpg --batch --import
+          install -o publisher -m 755 .github/publish-channel.sh /work/publish-channel.sh
+          sudo -u publisher env GH_TOKEN="$GH_TOKEN" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" bash /work/publish-channel.sh edge

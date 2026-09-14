@@ -1,12 +1,11 @@
-# Maintainer: Kindness <hello@kindness.ai>
-# Contributor: Chris Down <chris@chrisdown.name>
+# Maintainer: Chris Down <chris@chrisdown.name>
 
 pkgname=tzupdate
 pkgver=3.1.0
 pkgrel=1
 pkgdesc='Set the system timezone based on IP geolocation'
 url=https://github.com/cdown/tzupdate
-arch=('x86_64')
+arch=('x86_64' 'aarch64')
 options=(!lto)
 license=('MIT')
 makedepends=('cargo')

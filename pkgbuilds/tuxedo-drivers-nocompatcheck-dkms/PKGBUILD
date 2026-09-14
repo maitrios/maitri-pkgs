@@ -1,5 +1,4 @@
-# Maintainer: Kindness <hello@kindness.ai>
-# Contributor: Martin Kröner <aur@kroner.dev>
+# Maintainer: Martin Kröner <aur@kroner.dev>
 # shellcheck disable=SC2034,SC2128,SC2154
 _pkgname=tuxedo-drivers
 _reponame=${_pkgname}-nocompatcheck

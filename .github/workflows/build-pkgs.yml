@@ -1,99 +1,153 @@
 name: Build maitri packages
 
+# Builds every PKGBUILD incrementally (the published stable release is the
+# cache), then publishes the result as the [maitri] pacman repository on the
+# `stable` and `edge` GitHub Releases. The dev pair (maitri-dev,
+# maitri-settings-dev) is built by build-edge-dev.yml and only ever lands on
+# edge. Signing happens in the publish job, so the GPG key never shares a
+# job with third-party build() code.
+
 on:
+  push:
+    branches: [main]
+    paths: ['pkgbuilds/**', '.github/**']
   workflow_dispatch:
     inputs:
       force_rebuild:
         description: "Rebuild every package from scratch (ignore the published cache)"
         type: boolean
         default: false
-  push:
-    tags: ['pkgs-*']
+      packages:
+        description: "Only build these packages (space separated); empty builds everything"
+        type: string
+        default: ""
 
 permissions:
   contents: write
 
+concurrency:
+  group: build-pkgs
+  cancel-in-progress: false
+
 jobs:
   build:
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [core, heavy]
     runs-on: ubuntu-latest
-    container: archlinux:latest
+    timeout-minutes: 350
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install build tooling
-        run: |
-          # Parallelize pacman's download streams (per-repo DB + build-dep fetches); Arch ships this off
-          sed -i 's/^#\?ParallelDownloads.*/ParallelDownloads = 10/' /etc/pacman.conf
-          pacman -Syu --noconfirm --needed base-devel git github-cli pacman-contrib
-          # Use all cores for compilation (kernel / Rust / native-image builds)
-          printf 'MAKEFLAGS="-j%s"\n' "$(nproc)" >> /etc/makepkg.conf
+      - name: Free disk space for the heavy lane
+        if: matrix.lane == 'heavy'
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
 
-      - name: Prepare builder + import signing key
-        run: |
-          useradd -m builder
-          printf 'builder ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder
-          install -d -o builder /work /work/repo
-          cp -r pkgbuilds /work/pkgbuilds
-          chown -R builder:builder /work
-          printf '%s' "${{ secrets.MAITRI_GPG_PRIVATE_KEY }}" | sudo -u builder gpg --batch --import
-
-      - name: Seed build cache from the published release
+      - name: Seed build cache from the published stable release
         if: ${{ github.event.inputs.force_rebuild != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Incremental builds: reuse already-published packages so only changed/new
-          # PKGBUILDs recompile. The "stable" release is the cache.
-          if gh release download stable -R "${{ github.repository }}" -D /work/repo \
-               -p '*.pkg.tar.zst' 2>/dev/null; then
-            echo "seeded $(ls /work/repo/*.pkg.tar.zst 2>/dev/null | wc -l) cached packages"
+          mkdir -p work/repo
+          if gh release download stable -R "${{ github.repository }}" -D work/repo -p '*.pkg.tar.zst' 2>/dev/null; then
+            echo "seeded $(ls work/repo/*.pkg.tar.zst | wc -l) cached packages"
           else
             echo "no published release yet — full build"
           fi
-          chown -R builder:builder /work/repo
 
-      - name: Build packages (incremental, dependency-resolving rounds)
+      - name: Build packages (${{ matrix.lane }} lane)
         run: |
-          printf '\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n' >> /etc/pacman.conf
-          install -o builder -m 755 .github/build-packages.sh /work/build-packages.sh
-          sudo -u builder bash /work/build-packages.sh "${{ github.event.inputs.force_rebuild }}"
+          mkdir -p work/repo
+          docker run --rm \
+            -v "$PWD/pkgbuilds:/work/pkgbuilds:ro" \
+            -v "$PWD/work:/work/out" \
+            -v "$PWD/.github/build-packages.sh:/work/build-packages.sh:ro" \
+            -e FORCE="${{ github.event.inputs.force_rebuild }}" \
+            -e LANE="${{ matrix.lane }}" \
+            -e ONLY="${{ github.event.inputs.packages }}" \
+            archlinux:latest bash -euo pipefail -c '
+              sed -i "s/^#\?ParallelDownloads.*/ParallelDownloads = 10/" /etc/pacman.conf
+              pacman -Syu --noconfirm --needed base-devel git pacman-contrib
+              printf "MAKEFLAGS=\"-j%s\"\n" "$(nproc)" >> /etc/makepkg.conf
+              useradd -m builder
+              printf "builder ALL=(ALL) NOPASSWD: ALL\n" > /etc/sudoers.d/builder
+              cp -a /work/out/repo /work/repo
+              cp -r /work/pkgbuilds /work/pkgbuilds-rw
+              chown -R builder:builder /work/repo /work/pkgbuilds-rw
+              mv /work/pkgbuilds-rw /work/pkgbuilds.build && rm -rf /work/pkgbuilds && mv /work/pkgbuilds.build /work/pkgbuilds
+              printf "\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n" >> /etc/pacman.conf
+              status=0
+              sudo -u builder env FORCE="$FORCE" LANE="$LANE" ONLY="$ONLY" bash /work/build-packages.sh || status=$?
+              # Hand back only what this run built.
+              mkdir -p /work/out/built
+              while read -r pkg; do cp "/work/repo/$pkg" /work/out/built/; done < /work/built.txt
+              cp /work/built.txt /work/out/built.txt
+              exit $status
+            '
+          echo "built: $(cat work/built.txt | wc -l) packages"
 
-      - name: Sign + assemble + publish to stable release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: built-${{ matrix.lane }}
+          path: work/built
+          if-no-files-found: ignore
+          retention-days: 3
+
+  publish:
+    needs: build
+    if: ${{ always() && !cancelled() }}
+    strategy:
+      max-parallel: 1
+      matrix:
+        channel: [stable, edge]
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    concurrency:
+      group: publish-${{ matrix.channel }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install publish tooling
+        run: pacman -Syu --noconfirm --needed git github-cli pacman-contrib gnupg
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: built-*
+          path: built
+          merge-multiple: true
+
+      - name: Assemble the channel from its current assets plus what was built
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          sudo -u builder bash -euo pipefail -c '
-            cd /work/repo
-            rm -f maitri-local.* maitri.db* maitri.files*
-            # GitHub release assets cannot contain ":" (pacman epoch) — rename so
-            # the DB %FILENAME% matches the uploaded asset name.
-            for f in *:*; do [ -e "$f" ] && mv -- "$f" "${f//:/.}"; done
-            # Prune superseded versions so the release does not accumulate stale packages
-            # across runs: a rebuilt PKGBUILD leaves the previous .pkg.tar.zst behind (the
-            # cache seed re-downloads it), so keep only the newest build of each package.
-            paccache --remove --keep 1 --nocolor --cachedir . || true
-            # paccache only deletes the package files; drop any now-orphaned signatures.
-            for s in *.sig; do [ -e "${s%.sig}" ] || rm -f "$s"; done
-            # Re-sign every package each run. A rebuilt package overwrites its .pkg, so a
-            # stale .sig would otherwise linger and fail verification (BAD signature). Cheap.
-            for p in *.pkg.tar.zst; do gpg --batch --yes --detach-sign --no-armor "$p"; done
-            repo-add maitri.db.tar.gz *.pkg.tar.zst
-            cp --remove-destination maitri.db.tar.gz maitri.db
-            cp --remove-destination maitri.files.tar.gz maitri.files
-          '
-          cd /work/repo
-          gh release view stable -R "${{ github.repository }}" >/dev/null 2>&1 \
-            || gh release create stable -R "${{ github.repository }}" -t "maitri packages — stable" -n "Rolling maitri package channel."
-          gh release upload stable -R "${{ github.repository }}" --clobber \
-            maitri.db maitri.db.tar.gz maitri.files maitri.files.tar.gz *.pkg.tar.zst *.sig
-          # Delete any release asset no longer present locally — removes versions that
-          # were superseded and pruned this run (--clobber only overwrites same-named
-          # assets, it never deletes ones we stopped producing).
-          ls > /tmp/keep.txt
-          gh release view stable -R "${{ github.repository }}" --json assets -q '.assets[].name' \
-            | while read -r asset; do
-                grep -qxF "$asset" /tmp/keep.txt || {
-                  echo "deleting stale asset: $asset"
-                  gh release delete-asset stable "$asset" -R "${{ github.repository }}" -y
-                }
-              done
+          mkdir -p /work/repo
+          gh release download "${{ matrix.channel }}" -R "${{ github.repository }}" -D /work/repo -p '*.pkg.tar.zst' 2>/dev/null || true
+          if compgen -G 'built/*.pkg.tar.zst' >/dev/null; then cp built/*.pkg.tar.zst /work/repo/; fi
+          echo "$(ls /work/repo/*.pkg.tar.zst 2>/dev/null | wc -l) packages staged for ${{ matrix.channel }}"
+          # The release pair must move in lockstep.
+          m=$(ls /work/repo/maitri-[0-9]*.pkg.tar.zst 2>/dev/null | sed -E 's/.*maitri-([0-9][^-]*-[0-9]+)-.*/\1/' | sort -V | tail -1)
+          s=$(ls /work/repo/maitri-settings-[0-9]*.pkg.tar.zst 2>/dev/null | sed -E 's/.*maitri-settings-([0-9][^-]*-[0-9]+)-.*/\1/' | sort -V | tail -1)
+          if [[ -n $m && -n $s && $m != "$s" ]]; then
+            echo "::error::maitri ($m) and maitri-settings ($s) are out of lockstep"; exit 1
+          fi
+
+      - name: Sign and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          useradd -m publisher
+          chown -R publisher:publisher /work/repo
+          printf '%s' "${{ secrets.MAITRI_GPG_PRIVATE_KEY }}" | sudo -u publisher gpg --batch --import
+          install -o publisher -m 755 .github/publish-channel.sh /work/publish-channel.sh
+          sudo -u publisher env GH_TOKEN="$GH_TOKEN" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" bash /work/publish-channel.sh "${{ matrix.channel }}"

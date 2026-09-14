@@ -1,0 +1,159 @@
+# Maintainer: Kindness <hello@kindness.ai>
+pkgname='maitri-dev'
+pkgver=0.2.0.r0.g0000000
+pkgrel=1
+_pkgver_base=0.2.0
+_pkgver_base_tag=v0.2.0
+pkgdesc='A beautiful, opinionated Arch Linux desktop by Kindness, grown from Omarchy (main branch tip)'
+arch=('x86_64')
+url='https://github.com/kindness-ai/maitri'
+license=('MIT')
+provides=('maitri')
+conflicts=('maitri')
+# Hard depends: only packages whose removal would brick the desktop. The ISO
+# pacstraps the full default install set from install/maitri-base.packages.
+depends=(
+  # maitri meta
+  'maitri-keyring'
+  # Exact-version pin: maitri-settings-dev `provides=maitri-settings`
+  # (unversioned), and an unversioned dependency here would let the dev
+  # package satisfy it, leaving a mixed dev/stable install. A versioned
+  # dependency can only be satisfied by the real maitri-settings built
+  # from the same _commit, and forces the pair to upgrade together.
+  'maitri-settings-dev'
+  # The default login shell and its functions
+  'fish'
+  'maitri-fish'
+
+  # Wayland / Hyprland core
+  'hyprland'
+  'quickshell'
+  'uwsm'
+  'sddm'
+  'xdg-desktop-portal-hyprland'
+
+  # Audio / auth / portal essentials
+  'wireplumber'
+  'pipewire'
+  'gnome-keyring'
+
+  # Required by maitri-* scripts and maitri-shell
+  'gum'
+  'jq'
+  'git'
+  'perl' # /usr/bin/maitri-shell invokes perl directly
+
+  # Update availability checks (checkupdates from pacman-contrib uses fakeroot)
+  'fakeroot'
+  'pacman-contrib'
+
+  # System font (UI assumes it)
+  'ttf-jetbrains-mono-nerd-basic'
+
+  # Bootloader and snapshot stack. Lives here rather than on maitri-settings
+  # because maitri-settings is also installed into the live ISO env (for
+  # plymouth / /etc/skel seeding), where the limine-mkinitcpio-hook would fail
+  # with 'Cannot detect an ESP path' inside the chroot.
+  'limine'
+  'limine-mkinitcpio-hook'
+  'limine-snapper-sync'
+  'snapper'
+)
+
+makedepends=(
+  'git'
+)
+
+# Source: the main branch tip (MAITRI_DEV_COMMIT pins an exact commit); set
+# MAITRI_SRC=/path/to/checkout to
+# build from a local source tree instead (maitri dev pkg-test, the ISO's
+# --local-source).
+if [[ -n "${MAITRI_SRC:-}" ]]; then
+  source=()
+  sha256sums=()
+else
+  if [[ -n "${MAITRI_DEV_COMMIT:-}" ]]; then
+    source=("maitri::git+https://github.com/kindness-ai/maitri.git#commit=${MAITRI_DEV_COMMIT}")
+  else
+    source=("maitri::git+https://github.com/kindness-ai/maitri.git#branch=main")
+  fi
+  sha256sums=('SKIP')
+fi
+
+pkgver() {
+  cd "$srcdir/maitri"
+
+  local commit_count commit_hash
+  if git rev-parse --verify "${_pkgver_base_tag}^{commit}" >/dev/null 2>&1; then
+    commit_count=$(git rev-list --count "${_pkgver_base_tag}..HEAD")
+  else
+    commit_count=$(git rev-list --count HEAD)
+  fi
+  commit_hash=$(git rev-parse --short=7 HEAD)
+
+  printf "%s.r%s.g%s" "$_pkgver_base" "$commit_count" "$commit_hash"
+}
+
+prepare() {
+  if [[ -n "${MAITRI_SRC:-}" ]]; then
+    rm -rf "$srcdir/maitri"
+    mkdir -p "$srcdir/maitri"
+    cp -a "${MAITRI_SRC}/." "$srcdir/maitri/"
+  fi
+}
+
+package() {
+  cd "$srcdir/maitri"
+
+  # Runtime binaries — ship everything in bin/ except the debug helpers
+  # that ship from maitri-settings (needed before maitri is installed,
+  # e.g. on the ISO live env).
+  install -d "$pkgdir/usr/bin" "$pkgdir/usr/share/maitri/bin"
+  for bin in bin/*; do
+    [[ -f $bin ]] || continue
+    local base
+    base=$(basename "$bin")
+    case "$base" in
+      maitri-debug|maitri-debug-idle)
+        continue
+        ;;
+    esac
+    install -Dm755 "$bin" "$pkgdir/usr/bin/$base"
+    ln -s "/usr/bin/$base" "$pkgdir/usr/share/maitri/bin/$base"
+  done
+
+  install -d "$pkgdir/usr/share/maitri"
+
+  # Guard direct pacman upgrades from bypassing the maitri update pipeline,
+  # and pause Hyprland live config reloads while settings files are replaced.
+  # Ship hooks with their Exec targets so package skew cannot leave a broken
+  # hook pointing at a missing binary.
+  install -Dm644 default/libalpm/hooks/00-maitri-update-guard.hook "$pkgdir/usr/share/libalpm/hooks/00-maitri-update-guard.hook"
+  install -Dm644 default/libalpm/hooks/10-maitri-hyprland-reload-pause.hook "$pkgdir/usr/share/libalpm/hooks/10-maitri-hyprland-reload-pause.hook"
+  install -Dm644 default/libalpm/hooks/90-maitri-hyprland-reload-resume.hook "$pkgdir/usr/share/libalpm/hooks/90-maitri-hyprland-reload-resume.hook"
+
+  # Target-side setup scripts and package lists used by ISO finalization,
+  # first login, future users, migrations, and reinstall/reset commands.
+  cp -a install "$pkgdir/usr/share/maitri/"
+
+  # Theme bundles for theme switching.
+  cp -a themes "$pkgdir/usr/share/maitri/"
+
+  # Versioned migrations runner reads from this tree.
+  cp -a migrations "$pkgdir/usr/share/maitri/"
+
+  # Fresh users created after install are already on the package layout in this
+  # build, so seed migration markers through /etc/skel. Existing users keep
+  # their own state and still run pending migrations on update.
+  if compgen -G 'migrations/*.sh' >/dev/null; then
+    install -d "$pkgdir/etc/skel/.local/state/maitri/migrations"
+    for migration in migrations/*.sh; do
+      touch "$pkgdir/etc/skel/.local/state/maitri/migrations/$(basename "$migration")"
+    done
+  fi
+  # Quickshell desktop shell tree.
+  cp -a shell "$pkgdir/usr/share/maitri/"
+
+  # Runtime version file.
+  install -Dm644 version "$pkgdir/usr/share/maitri/version"
+}

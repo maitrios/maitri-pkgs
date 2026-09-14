@@ -29,20 +29,11 @@ strip_release = true
 source = "aur"
 strip_release = true
 
-[asusctl]
-source = "aur"
-strip_release = true
 
 [claude-code]
 source = "aur"
 strip_release = true
 
-[elephant]
-source = "aur"
-strip_release = true
-# elephant-{all,archlinuxpkgs,bluetooth,calc,clipboard,desktopapplications,files,
-# menus,providerlist,runner,symbols,todo,unicode,websearch} are split outputs of
-# this same source — they version-lock to elephant, so only check it once.
 
 [helium-browser-bin]
 source = "aur"
@@ -64,9 +55,6 @@ strip_release = true
 source = "aur"
 strip_release = true
 
-[localsend-bin]
-source = "aur"
-strip_release = true
 
 [macbook12-spi-driver-dkms]
 source = "aur"
@@ -76,9 +64,6 @@ strip_release = true
 source = "aur"
 strip_release = true
 
-[pinta]
-source = "aur"
-strip_release = true
 
 [python-terminaltexteffects]
 source = "aur"
@@ -124,9 +109,6 @@ strip_release = true
 source = "aur"
 strip_release = true
 
-[walker]
-source = "aur"
-strip_release = true
 
 [warp-terminal-bin]
 source = "aur"
@@ -161,14 +143,189 @@ github = "WhySoBad/hyprland-preview-share-picker"
 use_max_tag = true
 prefix = "v"
 
-[v4l2loopback-dkms]
-source = "github"
-github = "umlaeute/v4l2loopback"
-use_max_tag = true
-prefix = "v"
 
 # --- Local / custom: intentionally not tracked -------------------------------
 # dell-xps-touchpad-haptics  — maitri-internal package, no upstream release feed.
 # intel-ipu7-camera          — pinned personal fork (TsaiGaggery/hurrican_omarchy_enabling).
 # linux-ptl                  — custom kernel build, versioned against archlinux/linux manually.
 # maitri-keyring             — date-versioned internal keyring, bumped on key rotation.
+
+# --- added for the Omarchy 4 based loadout ---------------------------------
+[1password]
+source = "aur"
+strip_release = true
+
+[dropbox]
+source = "aur"
+strip_release = true
+
+[dropbox-cli]
+source = "aur"
+strip_release = true
+
+[nautilus-dropbox]
+source = "aur"
+strip_release = true
+
+[nordvpn-bin]
+source = "aur"
+strip_release = true
+
+[once-bin]
+source = "aur"
+strip_release = true
+
+[omazed]
+source = "aur"
+strip_release = true
+
+[symfony-cli]
+source = "aur"
+strip_release = true
+
+[voxtype-bin]
+source = "aur"
+strip_release = true
+
+[heroic-games-launcher-bin]
+source = "aur"
+strip_release = true
+
+[xpadneo-dkms]
+source = "aur"
+strip_release = true
+
+[sunshine]
+source = "aur"
+strip_release = true
+
+[minecraft-launcher]
+source = "aur"
+strip_release = true
+
+[claude-desktop]
+source = "aur"
+strip_release = true
+
+[cursor-bin]
+source = "aur"
+strip_release = true
+
+[cursor-cli]
+source = "aur"
+strip_release = true
+
+[lmstudio-bin]
+source = "aur"
+strip_release = true
+
+[crush-bin]
+source = "aur"
+strip_release = true
+
+[github-copilot-cli]
+source = "aur"
+strip_release = true
+
+[openclaw]
+source = "aur"
+strip_release = true
+
+[qmk-hid]
+source = "aur"
+strip_release = true
+
+[localsend]
+source = "aur"
+strip_release = true
+
+[vi]
+source = "aur"
+strip_release = true
+
+[hermes-desktop]
+source = "aur"
+strip_release = true
+
+[ttf-jetbrains-mono-nerd-basic]
+source = "aur"
+strip_release = true
+
+[libfprint-git]
+source = "aur"
+strip_release = true
+
+[herdr]
+source = "github"
+github = "herdrdev/herdr"
+use_max_tag = true
+prefix = "v"
+
+[omacalc]
+source = "github"
+github = "omacom-io/omacalc"
+use_max_tag = true
+prefix = "v"
+
+[omacut]
+source = "github"
+github = "omacom-io/omacut"
+use_max_tag = true
+prefix = "v"
+
+[omawrite]
+source = "github"
+github = "omacom-io/omawrite"
+use_max_tag = true
+prefix = "v"
+
+[ttfx]
+source = "github"
+github = "omacom-io/ttfx"
+use_max_tag = true
+prefix = "v"
+
+[tensaku]
+source = "github"
+github = "jondkinney/tensaku"
+use_max_tag = true
+prefix = "v"
+
+[aether]
+source = "github"
+github = "omacom/aether"
+use_max_tag = true
+prefix = "v"
+
+[cliamp]
+source = "github"
+github = "bjarneo/cliamp"
+use_max_tag = true
+prefix = "v"
+
+[tobi-try]
+source = "github"
+github = "tobi/try"
+use_max_tag = true
+prefix = "v"
+
+[mise-bin]
+source = "github"
+github = "jdx/mise"
+use_max_tag = true
+prefix = "v"
+
+[maitri-fish]
+source = "github"
+github = "kindness-ai/maitri-fish"
+use_max_tag = true
+prefix = "v"
+
+[maitri]
+source = "github"
+github = "kindness-ai/maitri"
+use_max_tag = true
+prefix = "v"
+
+# Checked by hand: maitri-nvim (LazyVim starter pin), maitri-dev, linux-ptl (Arch kernel patch set),
+# dell-xps13-sidecar-amps, openai-codex-desktop, t3code-bin, perplexity, grok-bot (vendor feeds).

@@ -25,8 +25,8 @@ _existing_home() {
 }
 
 _resolve_target_user() {
-  if [[ -n ${OMARCHY_HAPTIC_USER:-} && ${OMARCHY_HAPTIC_USER} != "root" ]]; then
-    printf '%s\n' "$OMARCHY_HAPTIC_USER"
+  if [[ -n ${MAITRI_HAPTIC_USER:-} && ${MAITRI_HAPTIC_USER} != "root" ]]; then
+    printf '%s\n' "$MAITRI_HAPTIC_USER"
     return 0
   fi
 
@@ -121,7 +121,7 @@ _reload_runtime_state() {
 _ensure_user_config() {
   local user=$1
   local home=$2
-  local config_dir="$home/.config/omarchy"
+  local config_dir="$home/.config/maitri"
   local config_path="$config_dir/dell-haptic.conf"
 
   if [[ ! -f $config_path ]] && ! env HOME="$home" USER="$user" LOGNAME="$user" \
@@ -140,8 +140,8 @@ _ensure_user_config() {
 }
 
 _reset_trackpad() {
-  if command -v omarchy-restart-trackpad >/dev/null 2>&1; then
-    omarchy-restart-trackpad 2>/dev/null || true
+  if command -v maitri-restart-trackpad >/dev/null 2>&1; then
+    maitri-restart-trackpad 2>/dev/null || true
   fi
 }
 
@@ -209,7 +209,7 @@ _configure_package() {
       return 1
     fi
   else
-    config_path="$home/.config/omarchy/dell-haptic.conf"
+    config_path="$home/.config/maitri/dell-haptic.conf"
     if [[ ! -f $config_path ]]; then
       echo ":: Could not seed ${config_path} because no desktop user could be identified." >&2
       return 1

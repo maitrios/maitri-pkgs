@@ -1,0 +1,14 @@
+post_install() {
+    echo "==> maitri-fish installed successfully!"
+    echo ""
+    echo "==> To run fish from bash:"
+    echo "    fish"
+    echo ""
+    echo "==> To set as default shell:"
+    echo "    maitri-setup-fish"
+}
+
+post_remove() {
+    echo "==> maitri-fish has been removed"
+    echo "==> To restore bash, copy a backup to ~/.bashrc"
+}
