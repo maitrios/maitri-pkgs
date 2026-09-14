@@ -88,9 +88,10 @@ jobs:
               printf "\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n" >> /etc/pacman.conf
               status=0
               sudo -u builder env FORCE="$FORCE" LANE="$LANE" ONLY="$ONLY" bash /work/build-packages.sh || status=$?
-              # Hand back only what this run built.
+              # Hand back only what this run built. Artifact paths cannot contain
+              # ":" (pacman epoch); publish-channel.sh expects the "." spelling.
               mkdir -p /work/out/built
-              while read -r pkg; do cp "/work/repo/$pkg" /work/out/built/; done < /work/built.txt
+              while read -r pkg; do cp "/work/repo/$pkg" "/work/out/built/${pkg//:/.}"; done < /work/built.txt
               cp /work/built.txt /work/out/built.txt
               exit $status
             '
@@ -154,4 +155,4 @@ jobs:
           chown -R publisher:publisher /work/repo
           printf '%s' "${{ secrets.MAITRI_GPG_PRIVATE_KEY }}" | sudo -u publisher gpg --batch --import
           install -o publisher -m 755 .github/publish-channel.sh /work/publish-channel.sh
-          sudo -u publisher env GH_TOKEN="$GH_TOKEN" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" bash /work/publish-channel.sh "${{ matrix.channel }}"
+          sudo -u publisher env GH_TOKEN="$GH_TOKEN" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" PKGBUILDS_DIR="$PWD/pkgbuilds" bash /work/publish-channel.sh "${{ matrix.channel }}"
