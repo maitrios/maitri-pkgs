@@ -7,20 +7,22 @@
 # `maitri-refresh-vicinae-extension` copies it into the user's Vicinae extensions dir
 # (Vicinae only loads extensions from ~/.local/share/vicinae/extensions).
 pkgname=maitri-vicinae-extension
-pkgver=0.6.1
+pkgver=1.0.0
 pkgrel=1
-pkgdesc="maitri control menu + keybindings extension for Vicinae"
+pkgdesc="maitri menu, keybindings and pickers for Vicinae"
 arch=('any')
 url="https://github.com/kindness-ai/vicinae-maitri"
 license=('MIT')
-depends=('vicinae')
+# The extension evaluates /usr/share/maitri/shell/plugins/menu/MenuModel.js and
+# renders default/maitri/maitri-menu.jsonc, both shipped by the maitri package.
+depends=('vicinae' 'maitri')
 
 _asset="maitri-vicinae-extension.tar.gz"
 noextract=("$pkgname-$pkgver.tar.gz")
 source=("$pkgname-$pkgver.tar.gz::${url}/releases/download/v${pkgver}/${_asset}")
 
-# Matches maitri-vicinae-extension.tar.gz.sha256 from the vicinae-maitri v$pkgver release.
-sha256sums=('60bac3f77eb57001077598be6cc4e40684c06dd2b418bd5c79f172ed70ab3814')
+# Pin to maitri-vicinae-extension.tar.gz.sha256 from the vicinae-maitri v$pkgver release once it is published.
+sha256sums=('SKIP')
 
 package() {
   local dest="$pkgdir/usr/share/maitri/vicinae-extension"
