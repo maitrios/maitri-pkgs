@@ -1,4 +1,5 @@
-# Maintainer: David Heinemeier Hansson <david@hey.com>
+# Maintainer: Kindness <hello@kindness.ai>
+# Recipe adapted from omarchy-pkgs.
 
 # T3 Code ships Linux as an AppImage and nothing else, so maitri unpacks it and
 # keeps only the Electron tree. AppRun, the compatibility libraries bundled for

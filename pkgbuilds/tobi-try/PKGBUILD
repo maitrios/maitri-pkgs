@@ -1,4 +1,5 @@
-# Maintainer: dhh
+# Maintainer: Kindness <hello@kindness.ai>
+# Recipe adapted from omarchy-pkgs.
 
 pkgname='tobi-try'
 pkgver=1.8.1

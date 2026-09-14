@@ -1,4 +1,5 @@
-# Maintainer: David Heinemeier Hansson <david@hey.com>
+# Maintainer: Kindness <hello@kindness.ai>
+# Recipe adapted from omarchy-pkgs.
 
 # Build a prebuilt release; maitri seeds it into the user's Hermes checkout
 # so the upstream updater can rebuild and relaunch it in place.
