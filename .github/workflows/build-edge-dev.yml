@@ -45,7 +45,7 @@ jobs:
       - name: Build the dev pair
         if: steps.sha.outputs.skip != 'true'
         run: |
-          pacman -Syu --noconfirm --needed base-devel git pacman-contrib
+          pacman -Syu --noconfirm --needed base-devel git sudo pacman-contrib
           useradd -m builder
           printf 'builder ALL=(ALL) NOPASSWD: ALL\n' > /etc/sudoers.d/builder
           install -d -o builder /work/repo
@@ -71,7 +71,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}
         run: |
-          pacman -Syu --noconfirm --needed github-cli gnupg
+          pacman -Syu --noconfirm --needed github-cli gnupg sudo
           gh release download edge -R "${{ github.repository }}" -D /work/repo -p '*.pkg.tar.zst' 2>/dev/null || true
           useradd -m publisher
           chown -R publisher:publisher /work/repo

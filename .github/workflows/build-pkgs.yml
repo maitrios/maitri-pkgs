@@ -68,7 +68,7 @@ jobs:
         run: |
           mkdir -p work/repo
           docker run --rm \
-            -v "$PWD/pkgbuilds:/work/pkgbuilds:ro" \
+            -v "$PWD/pkgbuilds:/work/pkgbuilds-src:ro" \
             -v "$PWD/work:/work/out" \
             -v "$PWD/.github/build-packages.sh:/work/build-packages.sh:ro" \
             -e FORCE="${{ github.event.inputs.force_rebuild }}" \
@@ -76,14 +76,15 @@ jobs:
             -e ONLY="${{ github.event.inputs.packages }}" \
             archlinux:latest bash -euo pipefail -c '
               sed -i "s/^#\?ParallelDownloads.*/ParallelDownloads = 10/" /etc/pacman.conf
-              pacman -Syu --noconfirm --needed base-devel git pacman-contrib
+              pacman -Syu --noconfirm --needed base-devel git sudo pacman-contrib
               printf "MAKEFLAGS=\"-j%s\"\n" "$(nproc)" >> /etc/makepkg.conf
               useradd -m builder
               printf "builder ALL=(ALL) NOPASSWD: ALL\n" > /etc/sudoers.d/builder
+              # makepkg needs a writable copy of the recipes and a repo dir it owns.
               cp -a /work/out/repo /work/repo
-              cp -r /work/pkgbuilds /work/pkgbuilds-rw
-              chown -R builder:builder /work/repo /work/pkgbuilds-rw
-              mv /work/pkgbuilds-rw /work/pkgbuilds.build && rm -rf /work/pkgbuilds && mv /work/pkgbuilds.build /work/pkgbuilds
+              cp -r /work/pkgbuilds-src /work/pkgbuilds
+              touch /work/built.txt
+              chown -R builder:builder /work/repo /work/pkgbuilds /work/built.txt
               printf "\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n" >> /etc/pacman.conf
               status=0
               sudo -u builder env FORCE="$FORCE" LANE="$LANE" ONLY="$ONLY" bash /work/build-packages.sh || status=$?
@@ -118,7 +119,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Install publish tooling
-        run: pacman -Syu --noconfirm --needed git github-cli pacman-contrib gnupg
+        run: pacman -Syu --noconfirm --needed git github-cli pacman-contrib gnupg sudo
 
       - uses: actions/download-artifact@v4
         with:
