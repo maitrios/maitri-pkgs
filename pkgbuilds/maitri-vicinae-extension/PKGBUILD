@@ -21,8 +21,8 @@ _asset="maitri-vicinae-extension.tar.gz"
 noextract=("$pkgname-$pkgver.tar.gz")
 source=("$pkgname-$pkgver.tar.gz::${url}/releases/download/v${pkgver}/${_asset}")
 
-# Pin to maitri-vicinae-extension.tar.gz.sha256 from the maitri-vicinae v$pkgver release once it is published.
-sha256sums=('SKIP')
+# From maitri-vicinae-extension.tar.gz.sha256 on the maitri-vicinae v$pkgver release.
+sha256sums=('b8af2c133aec33c9c667da04f584fd03dfbc81e3efbd6da00cfe98820cf1d83d')
 
 package() {
   local dest="$pkgdir/usr/share/maitri/vicinae-extension"
