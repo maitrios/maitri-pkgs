@@ -6,7 +6,7 @@ _pkgver_base=0.2.0
 _pkgver_base_tag=v0.2.0
 pkgdesc='A beautiful, opinionated Arch Linux desktop by Kindness, grown from Omarchy (main branch tip)'
 arch=('x86_64')
-url='https://github.com/kindness-ai/maitri'
+url='https://github.com/maitrios/maitri'
 license=('MIT')
 provides=('maitri')
 conflicts=('maitri')
@@ -73,9 +73,9 @@ if [[ -n "${MAITRI_SRC:-}" ]]; then
   sha256sums=()
 else
   if [[ -n "${MAITRI_DEV_COMMIT:-}" ]]; then
-    source=("maitri::git+https://github.com/kindness-ai/maitri.git#commit=${MAITRI_DEV_COMMIT}")
+    source=("maitri::git+https://github.com/maitrios/maitri.git#commit=${MAITRI_DEV_COMMIT}")
   else
-    source=("maitri::git+https://github.com/kindness-ai/maitri.git#branch=main")
+    source=("maitri::git+https://github.com/maitrios/maitri.git#branch=main")
   fi
   sha256sums=('SKIP')
 fi

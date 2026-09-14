@@ -16,7 +16,7 @@ pkgver=0.2.0
 pkgrel=1
 pkgdesc='A beautiful, opinionated Arch Linux desktop by Kindness, grown from Omarchy'
 arch=('x86_64')
-url='https://github.com/kindness-ai/maitri'
+url='https://github.com/maitrios/maitri'
 license=('MIT')
 conflicts=('maitri-dev')
 # Hard depends: only packages whose removal would brick the desktop. The ISO
@@ -80,7 +80,7 @@ if [[ -n "${MAITRI_SRC:-}" ]]; then
   source=()
   sha256sums=()
 else
-  source=("maitri::git+https://github.com/kindness-ai/maitri.git#commit=${_commit}")
+  source=("maitri::git+https://github.com/maitrios/maitri.git#commit=${_commit}")
   sha256sums=('SKIP')
 fi
 

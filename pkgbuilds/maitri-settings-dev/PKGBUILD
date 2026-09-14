@@ -6,7 +6,7 @@ _pkgver_base=0.2.0
 _pkgver_base_tag=v0.2.0
 pkgdesc='maitri user defaults, /etc/skel content, fonts, plymouth theme, and support helpers (main branch tip)'
 arch=('x86_64')
-url='https://github.com/kindness-ai/maitri'
+url='https://github.com/maitrios/maitri'
 license=('MIT')
 provides=('maitri-settings')
 conflicts=('maitri-settings')
@@ -104,9 +104,9 @@ if [[ -n "${MAITRI_SRC:-}" ]]; then
   sha256sums=()
 else
   if [[ -n "${MAITRI_DEV_COMMIT:-}" ]]; then
-    source=("maitri::git+https://github.com/kindness-ai/maitri.git#commit=${MAITRI_DEV_COMMIT}")
+    source=("maitri::git+https://github.com/maitrios/maitri.git#commit=${MAITRI_DEV_COMMIT}")
   else
-    source=("maitri::git+https://github.com/kindness-ai/maitri.git#branch=main")
+    source=("maitri::git+https://github.com/maitrios/maitri.git#branch=main")
   fi
   sha256sums=('SKIP')
 fi
@@ -217,9 +217,9 @@ BUILD_ID="$pkgver"
 VERSION_ID="$pkgver"
 ANSI_COLOR="38;2;130;170;255"
 HOME_URL="https://kindness.ai/"
-DOCUMENTATION_URL="https://github.com/kindness-ai/maitri#readme"
-SUPPORT_URL="https://github.com/kindness-ai/maitri/issues"
-BUG_REPORT_URL="https://github.com/kindness-ai/maitri/issues"
+DOCUMENTATION_URL="https://github.com/maitrios/maitri#readme"
+SUPPORT_URL="https://github.com/maitrios/maitri/issues"
+BUG_REPORT_URL="https://github.com/maitrios/maitri/issues"
 LOGO=maitri
 EOF
   for path in "${_etc_override_paths[@]}"; do

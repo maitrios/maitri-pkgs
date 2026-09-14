@@ -1,6 +1,6 @@
 name: Build maitri-dev for edge
 
-# Every push to kindness-ai/maitri main (via its notify-pkgs.yml) becomes a
+# Every push to maitrios/maitri main (via its notify-pkgs.yml) becomes a
 # maitri-dev + maitri-settings-dev build published to the edge channel. The
 # six-hourly schedule is the fallback when a dispatch is missed.
 
@@ -33,7 +33,7 @@ jobs:
         run: |
           pacman -Syu --noconfirm --needed git github-cli
           sha="${{ github.event.client_payload.sha }}"
-          [[ -n $sha ]] || sha=$(git ls-remote https://github.com/kindness-ai/maitri.git refs/heads/main | cut -f1)
+          [[ -n $sha ]] || sha=$(git ls-remote https://github.com/maitrios/maitri.git refs/heads/main | cut -f1)
           short=${sha:0:7}
           current=$(gh release view edge -R "${{ github.repository }}" --json assets -q '.assets[].name' 2>/dev/null | grep -oE '^maitri-dev-[^ ]*\.g[0-9a-f]{7}' | grep -oE 'g[0-9a-f]{7}$' | head -1 || true)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"

@@ -15,8 +15,8 @@
 set -euo pipefail
 
 ROOT=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
-SOURCE_REPO=https://github.com/kindness-ai/maitri.git
-STABLE_DB=https://github.com/kindness-ai/maitri-pkgs/releases/download/stable/maitri.db.tar.gz
+SOURCE_REPO=https://github.com/maitrios/maitri.git
+STABLE_DB=https://github.com/maitrios/maitri-pkgs/releases/download/stable/maitri.db.tar.gz
 PAIR=(maitri maitri-settings)
 DEV_PAIR=(maitri-dev maitri-settings-dev)
 

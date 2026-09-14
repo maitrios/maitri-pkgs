@@ -317,13 +317,13 @@ prefix = "v"
 
 [maitri-fish]
 source = "github"
-github = "kindness-ai/maitri-fish"
+github = "maitrios/maitri-fish"
 use_max_tag = true
 prefix = "v"
 
 [maitri]
 source = "github"
-github = "kindness-ai/maitri"
+github = "maitrios/maitri"
 use_max_tag = true
 prefix = "v"
 

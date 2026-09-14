@@ -2,7 +2,7 @@
 
 ## A maitri release
 
-1. In kindness-ai/maitri: land on `main`, set `version`, tag and push the tag (`git tag vX.Y.Z && git
+1. In maitrios/maitri: land on `main`, set `version`, tag and push the tag (`git tag vX.Y.Z && git
    push origin vX.Y.Z`). Do not publish the GitHub release yet.
 2. Here:
 
@@ -13,7 +13,7 @@
 
    Wait for the workflow, then check `gh release view stable --json assets -q '.assets[].name' | grep
    '^maitri-'`.
-3. In kindness-ai/maitri: `gh release create vX.Y.Z --generate-notes`. Its ISO build waits for the
+3. In maitrios/maitri: `gh release create vX.Y.Z --generate-notes`. Its ISO build waits for the
    stable channel to carry `maitri X.Y.Z` before baking.
 
 ## Repackaging the same tag
@@ -33,5 +33,5 @@ Automatic: every push to maitri `main` rebuilds `maitri-dev` and `maitri-setting
 ## Secrets and settings
 
 - `MAITRI_GPG_PRIVATE_KEY` (secret): the maitri signing key, imported only in publish jobs.
-- In kindness-ai/maitri: `MAITRI_PKGS_DISPATCH_TOKEN` (secret), a fine-grained PAT with
+- In maitrios/maitri: `MAITRI_PKGS_DISPATCH_TOKEN` (secret), a fine-grained PAT with
   `contents: write` on this repo, used by `notify-pkgs.yml`.

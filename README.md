@@ -1,12 +1,12 @@
 # maitri-pkgs
 
-The pacman package repository behind [maitri](https://github.com/kindness-ai/maitri): the `[maitri]`
+The pacman package repository behind [maitri](https://github.com/maitrios/maitri): the `[maitri]`
 repo its `pacman.conf` points at, built and signed in GitHub Actions and published as one GitHub
 Release per channel.
 
 ```
 [maitri]
-Server = https://github.com/kindness-ai/maitri-pkgs/releases/download/stable
+Server = https://github.com/maitrios/maitri-pkgs/releases/download/stable
 ```
 
 ## Channels
@@ -22,11 +22,11 @@ stable|edge` switches a machine between the two.
 ## Packages
 
 - **maitri** / **maitri-settings** — the desktop itself, built from a pinned commit of
-  kindness-ai/maitri (`pkgbuilds/maitri`, `pkgbuilds/maitri-settings`). They move in lockstep;
+  maitrios/maitri (`pkgbuilds/maitri`, `pkgbuilds/maitri-settings`). They move in lockstep;
   `scripts/bump-maitri` is the only thing that should edit their pins.
 - **maitri-dev** / **maitri-settings-dev** — the same recipes following `main`, edge only.
 - **maitri-keyring** — the signing key, trust anchor for the repo. **maitri-nvim** — LazyVim setup.
-  **maitri-fish** — fish functions and completions (kindness-ai/maitri-fish).
+  **maitri-fish** — fish functions and completions (maitrios/maitri-fish).
 - Everything else mirrors an AUR or vendor recipe that maitri's default install or an opt-in menu
   entry needs: launcher (vicinae-bin, maitri-vicinae-extension), Helium, editors, the oma* apps,
   hardware drivers, gaming and AI extras. Most are copied from
@@ -44,7 +44,7 @@ stable|edge` switches a machine between the two.
    checks the release pair is in lockstep, signs every package with `MAITRI_GPG_PRIVATE_KEY`,
    `repo-add`s `maitri.db`, uploads packages before the database, and deletes superseded assets.
 
-`.github/workflows/build-edge-dev.yml` builds the dev pair whenever kindness-ai/maitri pushes to `main`
+`.github/workflows/build-edge-dev.yml` builds the dev pair whenever maitrios/maitri pushes to `main`
 (its `notify-pkgs.yml` sends a `repository_dispatch`), or six-hourly, and publishes to `edge` under
 the same concurrency group.
 
