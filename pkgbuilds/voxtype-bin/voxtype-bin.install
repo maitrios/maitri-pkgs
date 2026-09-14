@@ -300,7 +300,7 @@ post_upgrade() {
     echo "        finishes and reports the outcome, so a script no longer"
     echo "        polls the transcript file and guesses."
     echo "      * Media pausing talks D-Bus directly. playerctl is no"
-    echo "        longer needed, which matters on maitri Quattro."
+    echo "        longer needed, which matters on Omarchy 4."
     echo "      * Notifications replace the previous one on KDE instead of"
     echo "        stacking (#532)."
     echo "      * setup gpu --status reports the backend the daemon is"

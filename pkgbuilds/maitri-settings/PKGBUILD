@@ -1,8 +1,8 @@
 # Maintainer: Kindness <hello@kindness.ai>
 # Release versioning convention (do not "fix" this; enforced by scripts/bump-maitri):
 #  - Pre-releases use the ATTACHED form pkgver=X.Y.ZrcN — NO separator. pacman's
-#    vercmp orders 0.2.0rc1 < 0.2.0rc2 < 0.2.0, but 0.2.0.rc1 and 0.2.0_rc1
-#    both sort AFTER 0.2.0 and would strand users on the pre-release.
+#    vercmp orders 0.3.0rc1 < 0.3.0rc2 < 0.3.0, but 0.3.0.rc1 and 0.3.0_rc1
+#    both sort AFTER 0.3.0 and would strand users on the pre-release.
 #  - pkgrel resets to 1 whenever pkgver changes; bump pkgrel alone only to
 #    repackage the same source.
 #  - epoch is a manual escape hatch decided by a human; tooling never sets it.
@@ -10,9 +10,9 @@
 #    provenance only (empty when cut from a bare commit). maitri and
 #    maitri-settings must always carry identical _tag/_commit/pkgver/sha256sums.
 pkgname='maitri-settings'
-_tag='v0.2.0'
+_tag='v0.3.0'
 _commit='ad2f1ffa208b4a13b826fca029acaae2a2810b01'
-pkgver=0.2.0
+pkgver=0.3.0
 pkgrel=1
 pkgdesc='maitri user defaults, /etc/skel content, fonts, plymouth theme, and support helpers'
 arch=('x86_64')

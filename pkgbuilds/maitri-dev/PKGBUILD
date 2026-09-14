@@ -1,9 +1,9 @@
 # Maintainer: Kindness <hello@kindness.ai>
 pkgname='maitri-dev'
-pkgver=0.2.0.r0.g0000000
+pkgver=0.3.0.r0.g0000000
 pkgrel=1
-_pkgver_base=0.2.0
-_pkgver_base_tag=v0.2.0
+_pkgver_base=0.3.0
+_pkgver_base_tag=v0.3.0
 pkgdesc='A beautiful, opinionated Arch Linux desktop by Kindness, grown from Omarchy (main branch tip)'
 arch=('x86_64')
 url='https://github.com/maitrios/maitri'
