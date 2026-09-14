@@ -96,7 +96,10 @@ jobs:
             '
           echo "built: $(cat work/built.txt | wc -l) packages"
 
+      # One broken recipe must not throw away the rest of the lane; publish
+      # takes whatever was built and the job still reports the failure.
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: built-${{ matrix.lane }}
           path: work/built
