@@ -11,7 +11,7 @@ pkgver=1.0.0
 pkgrel=1
 pkgdesc="maitri menu, keybindings and pickers for Vicinae"
 arch=('any')
-url="https://github.com/kindness-ai/vicinae-maitri"
+url="https://github.com/kindness-ai/maitri-vicinae"
 license=('MIT')
 # The extension evaluates /usr/share/maitri/shell/plugins/menu/MenuModel.js and
 # renders default/maitri/maitri-menu.jsonc, both shipped by the maitri package.
@@ -21,7 +21,7 @@ _asset="maitri-vicinae-extension.tar.gz"
 noextract=("$pkgname-$pkgver.tar.gz")
 source=("$pkgname-$pkgver.tar.gz::${url}/releases/download/v${pkgver}/${_asset}")
 
-# Pin to maitri-vicinae-extension.tar.gz.sha256 from the vicinae-maitri v$pkgver release once it is published.
+# Pin to maitri-vicinae-extension.tar.gz.sha256 from the maitri-vicinae v$pkgver release once it is published.
 sha256sums=('SKIP')
 
 package() {
