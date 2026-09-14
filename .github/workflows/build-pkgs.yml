@@ -136,7 +136,12 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           mkdir -p /work/repo
-          gh release download "${{ matrix.channel }}" -R "${{ github.repository }}" -D /work/repo -p '*.pkg.tar.zst' 2>/dev/null || true
+          # edge is stable plus the dev pair, so it starts from stable's assets;
+          # anything cached there never shows up in the built artifacts.
+          if [[ "${{ matrix.channel }}" == edge ]]; then
+            gh release download stable -R "${{ github.repository }}" -D /work/repo -p '*.pkg.tar.zst' 2>/dev/null || true
+          fi
+          gh release download "${{ matrix.channel }}" -R "${{ github.repository }}" -D /work/repo -p '*.pkg.tar.zst' --clobber 2>/dev/null || true
           if compgen -G 'built/*.pkg.tar.zst' >/dev/null; then cp built/*.pkg.tar.zst /work/repo/; fi
           echo "$(ls /work/repo/*.pkg.tar.zst 2>/dev/null | wc -l) packages staged for ${{ matrix.channel }}"
           # The release pair must move in lockstep.
