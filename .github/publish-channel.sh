@@ -26,11 +26,18 @@ fi
 for f in *:*; do [[ -e $f ]] && mv -- "$f" "${f//:/.}"; done
 
 # Drop packages whose recipe no longer exists; the cache seed would otherwise
-# carry a retired package on the channel forever.
+# carry a retired package on the channel forever. Match on the pkgbase each
+# recipe declares, not its directory name (pkgbuilds/yaru-icon-theme builds
+# pkgbase yaru).
 if [[ -n ${PKGBUILDS_DIR:-} && -d $PKGBUILDS_DIR ]]; then
+  known=$(for d in "$PKGBUILDS_DIR"/*/; do
+    [[ -f $d/PKGBUILD ]] || continue
+    (cd "$d" && bash -c 'source ./PKGBUILD 2>/dev/null; echo "${pkgbase:-${pkgname[0]}}"')
+  done)
   for p in *.pkg.tar.zst; do
     base=$(bsdtar -xOf "$p" .PKGINFO 2>/dev/null | sed -n 's/^pkgbase = //p' | head -1)
-    [[ -n $base && ! -d $PKGBUILDS_DIR/$base ]] || continue
+    [[ -n $base ]] || continue
+    grep -qxF "$base" <<<"$known" && continue
     echo "retired recipe $base: dropping $p"
     rm -f -- "$p" "$p.sig"
   done
