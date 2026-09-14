@@ -11,7 +11,7 @@
 #    maitri-settings must always carry identical _tag/_commit/pkgver/sha256sums.
 pkgname='maitri'
 _tag='v0.3.0'
-_commit='ad2f1ffa208b4a13b826fca029acaae2a2810b01'
+_commit='242ee0235a44de44bc85ea66e33ba0adadf92ac9'
 pkgver=0.3.0
 pkgrel=1
 pkgdesc='A beautiful, opinionated Arch Linux desktop by Kindness, grown from Omarchy'
