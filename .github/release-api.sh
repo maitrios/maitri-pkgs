@@ -3,6 +3,7 @@
 #
 #   source release-api.sh                          # functions below
 #   release-api.sh fetch <channel> <dir> <glob>...  # download matching assets
+#   release-api.sh list <channel>                    # assets as name/id/sha256/url TSV
 #
 # GITHUB_TOKEN gets 1,000 API requests an hour for the repository, and every
 # asset upload, delete and metered download is one request. Back-to-back
@@ -127,6 +128,7 @@ if [[ ${BASH_SOURCE[0]} == "$0" ]]; then
   shift || true
   case $cmd in
     fetch) fetch_assets "$@" ;;
-    *) echo "usage: release-api.sh fetch <channel> <dir> <glob>..." >&2; exit 2 ;;
+    list) json=$(release_json "${1:?channel}") && assets_tsv <<<"$json" ;;
+    *) echo "usage: release-api.sh fetch <channel> <dir> <glob>... | list <channel>" >&2; exit 2 ;;
   esac
 fi
