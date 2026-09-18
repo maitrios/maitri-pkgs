@@ -51,6 +51,9 @@ jobs:
           install -d -o builder /work/repo
           cp -r pkgbuilds/maitri-settings-dev pkgbuilds/maitri-dev /work/
           chown -R builder:builder /work
+          # The repos below exist for this step alone; the publish step syncs
+          # pacman again after the local database is gone.
+          cp -a /etc/pacman.conf /work/pacman.conf.pristine
           printf '\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n' >> /etc/pacman.conf
           # maitri-dev depends on packages only this channel ships (maitri-keyring,
           # maitri-fish, the UI font, the limine hooks). Listed after maitri-local
@@ -73,6 +76,7 @@ jobs:
             done
           '
           rm -f /work/repo/maitri-local.*
+          mv /work/pacman.conf.pristine /etc/pacman.conf
 
       - name: Publish to edge
         if: steps.sha.outputs.skip != 'true'
