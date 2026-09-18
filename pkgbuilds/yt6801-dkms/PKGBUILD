@@ -3,7 +3,7 @@
 
 _pkgbase=yt6801
 pkgname=yt6801-dkms
-pkgver=1.0.33
+pkgver=1.0.34
 pkgrel=1
 pkgdesc="Kernel module for Motorcomm YT6801 ethernet controller (DKMS)"
 arch=('x86_64')
@@ -13,9 +13,13 @@ depends=('dkms')
 # The vendor download is a zip containing yt_nic_install.sh and the real source
 # tarball (yt6801-<pkgver>.tar.gz, sources at its root). makepkg auto-extracts the
 # zip; prepare() unpacks the inner tarball into src/ and applies the kernel-compat patch.
+# id=1817 is the vendor's rolling "current Linux driver" link, not a per-version URL:
+# when Motorcomm ships a new release the same URL starts serving it and the checksum
+# below stops matching. Re-download, compare the inner tarball name, then bump pkgver
+# and repin.
 source=(${_pkgbase}-${pkgver}.zip::'https://www.motor-comm.com/Cn/Skippower/downloadFile.html?id=1817'
         'patch.diff')
-sha256sums=('023d84095bf560f7d050fc4eba426eab4be622604d6181f604ef7e0e63456715'
+sha256sums=('877e6953fc6eb47232a74e47b0daf33de0e7f9e9a395d3bc10d500d3c4150af8'
             'SKIP')
 
 prepare() {
