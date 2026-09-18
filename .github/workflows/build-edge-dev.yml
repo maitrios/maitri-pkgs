@@ -31,11 +31,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          pacman -Syu --noconfirm --needed git github-cli
+          pacman -Syu --noconfirm --needed git github-cli jq
           sha="${{ github.event.client_payload.sha }}"
           [[ -n $sha ]] || sha=$(git ls-remote https://github.com/maitrios/maitri.git refs/heads/main | cut -f1)
           short=${sha:0:7}
-          current=$(gh release view edge -R "${{ github.repository }}" --json assets -q '.assets[].name' 2>/dev/null | grep -oE '^maitri-dev-[^ ]*\.g[0-9a-f]{7}' | grep -oE 'g[0-9a-f]{7}$' | head -1 || true)
+          # A listing that fails must fail the job: guessing "not built yet"
+          # would spend a rebuild and a publish on an already-drained bucket.
+          assets=$(bash .github/release-api.sh list edge)
+          current=$(cut -f1 <<<"$assets" | grep -oE '^maitri-dev-[^ ]*\.g[0-9a-f]{7}' | grep -oE 'g[0-9a-f]{7}$' | head -1 || true)
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
           if [[ $current == "g$short" ]]; then
             echo "edge already carries maitri-dev at $short"
