@@ -52,6 +52,10 @@ jobs:
           cp -r pkgbuilds/maitri-settings-dev pkgbuilds/maitri-dev /work/
           chown -R builder:builder /work
           printf '\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n' >> /etc/pacman.conf
+          # maitri-dev depends on packages only this channel ships (maitri-keyring,
+          # maitri-fish, the UI font, the limine hooks). Listed after maitri-local
+          # so the maitri-settings-dev built here wins over the copy already on edge.
+          printf '\n[maitri]\nSigLevel = Never\nServer = https://github.com/%s/releases/download/edge\n' "${{ github.repository }}" >> /etc/pacman.conf
           # pacman refuses every transaction while a configured repo has no
           # database, so seed an empty one and sync before the first makepkg -s
           # asks it to install build dependencies.
