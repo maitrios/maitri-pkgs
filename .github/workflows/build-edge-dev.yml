@@ -52,6 +52,11 @@ jobs:
           cp -r pkgbuilds/maitri-settings-dev pkgbuilds/maitri-dev /work/
           chown -R builder:builder /work
           printf '\n[maitri-local]\nSigLevel = Never\nServer = file:///work/repo\n' >> /etc/pacman.conf
+          # pacman refuses every transaction while a configured repo has no
+          # database, so seed an empty one and sync before the first makepkg -s
+          # asks it to install build dependencies.
+          sudo -u builder repo-add /work/repo/maitri-local.db.tar.gz >/dev/null 2>&1
+          pacman -Sy >/dev/null
           # maitri-settings-dev first: maitri-dev depends on it, and the local repo
           # is how makepkg -s finds a package that is not published yet.
           sudo -u builder bash -euo pipefail -c '
