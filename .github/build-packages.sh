@@ -24,9 +24,11 @@ shopt -s nullglob
 # Long compiles get their own runner so a full rebuild of the rest never waits
 # on a kernel build.
 HEAVY="linux-ptl sunshine"
-# VCS packages with a pkgver() function look "uncached" on every run; they only
-# build when named explicitly or on a forced rebuild.
-ON_DEMAND="libretro-cap32-git libretro-fbneo-git libretro-uae-git libretro-vice-git libretro-database-git retroarch-joypad-autoconfig-git libfprint-git"
+# VCS packages that follow a branch look "uncached" on every run; they only
+# build when named explicitly or on a forced rebuild. libfprint-git is not
+# one of them: it pins a commit, so its pkgver is stable and it caches like
+# any other package. The fingerprint setup installs it from this repo.
+ON_DEMAND="libretro-cap32-git libretro-fbneo-git libretro-uae-git libretro-vice-git libretro-database-git retroarch-joypad-autoconfig-git"
 
 in_list() { case " $2 " in *" $1 "*) return 0 ;; esac; return 1; }
 
