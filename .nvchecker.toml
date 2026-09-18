@@ -34,6 +34,9 @@ strip_release = true
 source = "aur"
 strip_release = true
 
+[fish-pure-prompt]
+source = "aur"
+strip_release = true
 
 [helium-browser-bin]
 source = "aur"
