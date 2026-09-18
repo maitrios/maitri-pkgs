@@ -1,14 +1,14 @@
 # Maintainer: Kindness <hello@kindness.ai>
 # Contributor: cilgin <cilgincc@outlook.com>
 # Contributor: Arjix <me@arjix.dev>
-# Contributor: Aurelle <gh@aurelle.dev>
+# Contributor: Aurelle <aur@aurelle.dev>
 
 # shellcheck disable=SC2034,SC2154,SC2128,SC2164
 
 pkgname=vicinae-bin
-pkgver=0.22.0
+pkgver=0.29.0
 pkgrel=1
-pkgdesc="Raycast like FOSS app on Linux"
+pkgdesc="A focused launcher for your desktop — native, fast, extensible"
 arch=('x86_64')
 url="https://github.com/vicinaehq/vicinae"
 license=('GPL3')
@@ -20,8 +20,6 @@ depends=(
   layer-shell-qt
   libqalculate
   qtkeychain-qt6
-  libxml2
-  minizip
   syntax-highlighting
 )
 makedepends=("sed")
@@ -35,23 +33,12 @@ source=(
   "vicinae.hook"
 )
 
-sha256sums=('a72017ac37e49d0c08c52487859e564e3de14cf421e60930de0064e7a3527248'
+sha256sums=('f6bacf8ccc4949eb7924185376dbac2b4552ab216a12cb1642da283795f6c521'
             '03f23ea908d2426070d7cc9b2c3e9f5b1ceb566e3bd6c5c9cebeb42f1759f92b')
 
 prepare() {
   mkdir -p vicinae
   tar -xzf "vicinae-${arch}-v${pkgver}-${pkgrel}.tgz" -C vicinae
-
-  mv vicinae/share/vicinae/native-host/*.in "$srcdir"
-  rm -rf vicinae/share/vicinae/native-host
-
-  mv com.vicinae.vicinae.chromium.json{.in,}
-  mv com.vicinae.vicinae.firefox.json{.in,}
-
-  sed -i \
-    -e 's|@NATIVE_HOST_BIN@|/usr/libexec/vicinae/vicinae-browser-link|' \
-    -e 's|@CHROME_EXTENSION_ID@|kcmipingpfbohfjckomimmahknoddnke|' \
-    ./*.json
 }
 
 package() {
@@ -59,10 +46,6 @@ package() {
   for item in ./vicinae/*; do
     cp -a "$item" "$pkgdir/usr/"
   done
-
-  # have to be installed manually due to non standard locations
-  install -Dm644 "$srcdir"/com.vicinae.vicinae.chromium.json "$pkgdir/etc/chromium/native-messaging-hosts/com.vicinae.vicinae.json"
-  install -Dm644 "$srcdir"/com.vicinae.vicinae.firefox.json "$pkgdir/usr/lib/mozilla/native-messaging-hosts/com.vicinae.vicinae.json"
 
   # Pacman hook
   install -Dm644 "$srcdir/${pkgname%-bin}.hook" "$pkgdir/usr/share/libalpm/hooks/${pkgname%-bin}.hook"
