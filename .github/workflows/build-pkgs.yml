@@ -131,13 +131,32 @@ jobs:
       - name: Install publish tooling
         run: pacman -Syu --noconfirm --needed git github-cli jq pacman-contrib gnupg sudo
 
+      # Publish jobs queue behind the channel's concurrency group, so an older
+      # run's publish can start after a newer run's has finished. Its checkout
+      # predates any recipe the newer run added, and the retired-recipe sweep in
+      # publish-channel.sh would drop that package from the channel again. The
+      # newer commit's own run publishes everything, so a run whose branch has
+      # moved on stands down instead.
+      - name: Stop when the branch has moved past this commit
+        id: tip
+        run: |
+          tip=$(git ls-remote --exit-code "https://github.com/${{ github.repository }}" "refs/heads/${{ github.ref_name }}" | cut -f1)
+          if [[ $tip == "${{ github.sha }}" ]]; then
+            echo "publish=true" >>"$GITHUB_OUTPUT"
+          else
+            echo "::notice::${{ github.ref_name }} is at ${tip:0:7}; this run built ${GITHUB_SHA:0:7}, so its publish is skipped. To republish from the tip, run the workflow with workflow_dispatch."
+            echo "publish=false" >>"$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/download-artifact@v4
+        if: steps.tip.outputs.publish == 'true'
         with:
           pattern: built-*
           path: built
           merge-multiple: true
 
       - name: Assemble the channel from its current assets plus what was built
+        if: steps.tip.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -160,6 +179,7 @@ jobs:
           fi
 
       - name: Sign and publish
+        if: steps.tip.outputs.publish == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REPOSITORY: ${{ github.repository }}

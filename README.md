@@ -43,6 +43,8 @@ stable|edge` switches a machine between the two.
 2. **publish** (`stable`, then `edge`) downloads the channel's current assets plus what was built,
    checks the release pair is in lockstep, signs every package with `MAITRI_GPG_PRIVATE_KEY`,
    `repo-add`s `maitri.db`, uploads packages before the database, and deletes superseded assets.
+   A publish whose branch has moved past the commit it built stands down: the newer commit's own
+   run publishes, and an older checkout would retire recipes that commit added.
 
 `.github/workflows/build-edge-dev.yml` builds the dev pair whenever maitrios/maitri pushes to `main`
 (its `notify-pkgs.yml` sends a `repository_dispatch`), or six-hourly, and publishes to `edge` under
