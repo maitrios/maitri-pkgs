@@ -2,8 +2,8 @@
 pkgname='maitri-settings-dev'
 pkgver=0.3.0.r0.g0000000
 pkgrel=1
-_pkgver_base=0.3.0
-_pkgver_base_tag=v0.3.0
+_pkgver_base=0.4.0
+_pkgver_base_tag=v0.4.0
 pkgdesc='maitri user defaults, /etc/skel content, fonts, plymouth theme, and support helpers (main branch tip)'
 arch=('x86_64')
 url='https://github.com/maitrios/maitri'
