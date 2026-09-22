@@ -10,9 +10,9 @@
 #    provenance only (empty when cut from a bare commit). maitri and
 #    maitri-settings must always carry identical _tag/_commit/pkgver/sha256sums.
 pkgname='maitri-settings'
-_tag='v0.4.0'
-_commit='d8e8cbe5f82fc0464e13321c8e38f94db1197c36'
-pkgver=0.4.0
+_tag='v0.4.1'
+_commit='a71a9f540dfb03ba5d4cb343bdc98467cecace8b'
+pkgver=0.4.1
 pkgrel=1
 pkgdesc='maitri user defaults, /etc/skel content, fonts, plymouth theme, and support helpers'
 arch=('x86_64')
