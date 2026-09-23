@@ -5,7 +5,7 @@
 # from that repository's package index.
 
 pkgname=perplexity
-pkgver=26.9.4+build72244
+pkgver=26.9.5+build84210
 pkgrel=1
 pkgdesc="Official Perplexity desktop app"
 arch=('x86_64' 'aarch64')
@@ -81,8 +81,8 @@ source_x86_64=("${_deb_x86_64}::${_pool}/${_deb_x86_64//+/%2B}")
 source_aarch64=("${_deb_aarch64}::${_pool}/${_deb_aarch64//+/%2B}")
 noextract=("${_deb_x86_64}" "${_deb_aarch64}")
 sha256sums=('b180ca6fbd268712a277a34d4215f176001c0031a4f6360686458623f47fad65')
-sha256sums_x86_64=('fe64a09a82f8e6b0e3de5637ee768dc5aee94a326af795dce8bcbaf5c7660409')
-sha256sums_aarch64=('855330d95401f8e8360f846031ebbefe84bbe0fd9d6ec7814f0e79ef5c4c8bc6')
+sha256sums_x86_64=('bc4c3630c01c6f5aa122c05277bdf3881d73369b81327139e3cf19c9e76012c9')
+sha256sums_aarch64=('4a60e7a7dc164c6179dd38ff90b79dbb19627de85038cf5311c58098cb595e31')
 
 package() {
   cd "${srcdir}"

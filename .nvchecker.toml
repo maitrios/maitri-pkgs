@@ -206,10 +206,6 @@ strip_release = true
 source = "aur"
 strip_release = true
 
-[claude-desktop]
-source = "aur"
-strip_release = true
-
 [cursor-bin]
 source = "aur"
 strip_release = true
@@ -246,13 +242,12 @@ strip_release = true
 source = "aur"
 strip_release = true
 
-[hermes-desktop]
-source = "aur"
-strip_release = true
-
+# Our own subset of the Nerd Fonts JetBrains Mono release; no AUR counterpart.
 [ttf-jetbrains-mono-nerd-basic]
-source = "aur"
-strip_release = true
+source = "github"
+github = "ryanoasis/nerd-fonts"
+use_max_tag = true
+prefix = "v"
 
 [libfprint-git]
 source = "aur"
@@ -304,5 +299,33 @@ github = "maitrios/maitri"
 use_max_tag = true
 prefix = "v"
 
+[maitri-vicinae-extension]
+source = "github"
+github = "maitrios/maitri-vicinae"
+use_max_tag = true
+prefix = "v"
+
+[t3code-bin]
+source = "github"
+github = "pingdotgg/t3code"
+use_max_tag = true
+prefix = "v"
+
+# --- Vendor apt repositories: the recipes repackage these .debs ------------
+# The AUR lags these feeds by weeks, so track the stable suite directly.
+[claude-desktop]
+source = "apt"
+mirror = "https://downloads.claude.ai/claude-desktop/apt/stable"
+suite = "stable"
+pkg = "claude-desktop"
+
+[openai-codex-desktop]
+source = "apt"
+mirror = "https://persistent.oaistatic.com/codex-app-prod/linux/deb"
+suite = "stable"
+pkg = "chatgpt"
+
 # Checked by hand: maitri-nvim (LazyVim starter pin), maitri-dev, linux-ptl (Arch kernel patch set),
-# dell-xps13-sidecar-amps, openai-codex-desktop, t3code-bin, perplexity, grok-bot (vendor feeds).
+# dell-xps13-sidecar-amps, hermes-desktop (omarchy-pkgs date pin), grok-bot (Cursor CDN, no index),
+# perplexity (https://packages.perplexity.ai/deb/dists/stable/main/binary-amd64/Packages carries the
+# version without the +buildNNNN suffix the .deb filename needs, so nvcmp cannot compare it).
