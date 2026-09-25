@@ -329,3 +329,7 @@ pkg = "chatgpt"
 # dell-xps13-sidecar-amps, hermes-desktop (omarchy-pkgs date pin), grok-bot (Cursor CDN, no index),
 # perplexity (https://packages.perplexity.ai/deb/dists/stable/main/binary-amd64/Packages carries the
 # version without the +buildNNNN suffix the .deb filename needs, so nvcmp cannot compare it).
+#
+# Also untracked on purpose: maitri-settings and maitri-settings-dev move in lockstep with their
+# pair under scripts/bump-maitri, and the -git recipes (libretro-*, retroarch-joypad-autoconfig-git)
+# follow a branch rather than a release.
