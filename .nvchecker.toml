@@ -117,10 +117,6 @@ strip_release = true
 source = "aur"
 strip_release = true
 
-[xdg-terminal-exec]
-source = "aur"
-strip_release = true
-
 [yaru-icon-theme]
 source = "aur"
 strip_release = true
@@ -143,6 +139,15 @@ prefix = "v"
 [hyprland-preview-share-picker]
 source = "github"
 github = "WhySoBad/hyprland-preview-share-picker"
+use_max_tag = true
+prefix = "v"
+
+# No AUR package of this name exists (only -git and -mkhl forks), so track the
+# upstream GitLab project the recipe already builds from.
+[xdg-terminal-exec]
+source = "gitlab"
+host = "gitlab.freedesktop.org"
+gitlab = "Vladimir-csp/xdg-terminal-exec"
 use_max_tag = true
 prefix = "v"
 
