@@ -273,7 +273,7 @@ prefix = "v"
 
 [ttfx]
 source = "github"
-github = "omacom-io/ttfx"
+github = "omacom/ttfx"
 use_max_tag = true
 prefix = "v"
 
