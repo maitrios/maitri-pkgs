@@ -11,8 +11,11 @@
 #
 # Caveats:
 #   - strip_release hides AUR pkgrel-only bumps (rebuilds without a new pkgver).
-#   - epoch packages (spotify) report the "epoch:" prefix, so they read as behind
-#     even when current — ignore that one line.
+#   - epoch packages (spotify, vi, minecraft-launcher, cursor-cli) report the
+#     "epoch:" prefix, and nvcmp compares it as text, so they read as behind even
+#     when current. Do not dismiss those lines on sight: run the pkgver through
+#     `vercmp` before deciding, or a real update hiding behind an epoch prefix
+#     (cursor-cli did this) is skipped as noise.
 #   - GitHub entries are unauthenticated; if you hit rate limits set a keyfile (see
 #     https://nvchecker.readthedocs.io and add `keyfile` under [__config__]).
 
