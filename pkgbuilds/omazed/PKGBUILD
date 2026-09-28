@@ -1,11 +1,11 @@
 pkgname=omazed
 pkgver=2.2.0
-pkgrel=1
+pkgrel=2
 pkgdesc="Live theme switching for Zed in maitri - automatically synchronize your Zed editor theme with your maitri system theme"
 arch=('any')
 url="https://github.com/aps6/omazed"
 license=('MIT')
-depends=('bash' 'jq')
+depends=('bash' 'jq' 'perl')
 makedepends=('git')
 backup=()
 install=omazed.install
