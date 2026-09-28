@@ -1,8 +1,11 @@
 # Maintainer: noureddinex
 pkgname=lmstudio-bin
 pkgver=0.4.25
-pkgrel=1
-_pkgver=${pkgver}-${pkgrel}
+pkgrel=2
+# The vendor's build number in the download URL; independent of pkgrel, so a
+# recipe-only rebuild does not point the source at a URL that does not exist.
+_build=1
+_pkgver=${pkgver}-${_build}
 pkgdesc="LM Studio - A desktop app for exploring and running large language models locally"
 arch=('x86_64')
 url="https://lmstudio.ai"
@@ -17,7 +20,7 @@ source=("https://installers.lmstudio.ai/linux/x64/${_pkgver}/LM-Studio-${_pkgver
          "lmstudio.desktop")
 sha256sums=('eca467446c833824697e8befab300fe5269fdf984e3ee4385fcbad8502f07c53'
             '9f791789c959a11316328692807737a5f1bc1c170ae99ec04c56bfd8ee8263e5'
-            '635dec12f3e3a57136b9e6fd7c2839ed6da7287fa55b482d64debf6eacf36baa')
+            '16b67b6cd672a05b9a0e012c8b9a91187ceda8f85b3391db471298c54e002bcd')
 
 prepare() {
   chmod +x "${srcdir}/${source[0]##*/}"
@@ -34,8 +37,8 @@ package() {
   install -Dm644 "${srcdir}/lmstudio.png" "${pkgdir}/usr/share/icons/hicolor/512x512/apps/lmstudio-bin.png"
   install -Dm644 "${srcdir}/lmstudio.png" "${pkgdir}/usr/share/pixmaps/lmstudio-bin.png"
   
-  # Desktop entry
-  install -Dm644 "$srcdir/lmstudio.desktop" "$pkgdir/usr/share/applications/lmstudio.desktop"
+  # Desktop entry, under LM Studio's own desktop ID, which matches its window class
+  install -Dm644 "$srcdir/lmstudio.desktop" "$pkgdir/usr/share/applications/ai.elementlabs.lmstudio.desktop"
   
   # Symlink to binary
   install -dm755 "$pkgdir/usr/bin"
