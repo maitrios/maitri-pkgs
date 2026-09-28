@@ -2,7 +2,7 @@
 # Recipe adapted from omarchy-pkgs.
 
 pkgname=ttfx
-pkgver=0.4.0
+pkgver=0.5.0
 pkgrel=1
 pkgdesc="Terminal text effects as a single static binary — Rust port of terminaltexteffects"
 arch=('x86_64' 'aarch64')
@@ -15,7 +15,7 @@ makedepends_x86_64=('nasm')
 options=('!debug')
 
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('90a057971973917a45ae1cb2fc795cfaea33afc265180ba4a963172daf9f64ee')
+sha256sums=('2882c7e47011a95f4d136303f7320da71613299840f67f88fd1385ef53d5f2a0')
 
 prepare() {
   cd "$pkgname-$pkgver"
