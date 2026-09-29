@@ -340,4 +340,6 @@ pkg = "chatgpt"
 #
 # Also untracked on purpose: maitri-settings and maitri-settings-dev move in lockstep with their
 # pair under scripts/bump-maitri, and the -git recipes (libretro-*, retroarch-joypad-autoconfig-git)
-# follow a branch rather than a release.
+# follow a branch rather than a release. maitri-keyring carries the signing key and has no upstream;
+# dell-xps-touchpad-haptics and intel-ipu7-camera are omarchy-pkgs-authored recipes with no release
+# feed of their own, so they move only when omarchy-pkgs moves them.
