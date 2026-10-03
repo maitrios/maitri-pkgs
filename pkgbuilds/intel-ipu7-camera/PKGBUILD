@@ -2,7 +2,7 @@
 
 pkgname=intel-ipu7-camera
 pkgver=1.0.6
-pkgrel=2
+pkgrel=3
 pkgdesc="Intel IPU7 MIPI camera stack for Hurrican/Performance (OV08X40 + hardware ISP)"
 arch=('x86_64')
 url="https://github.com/TsaiGaggery/hurrican_omarchy_enabling"
@@ -64,6 +64,7 @@ source=(
   "intel-cvs-v4l2.c::${_intel_cvs_url}/v4l2.c?h=${_intel_cvs_kernel_tag}"
   "intel-cvs-icvs.h::${_intel_cvs_url}/icvs.h?h=${_intel_cvs_kernel_tag}"
   "0004-ipu7-psys-register-device-bus.patch"
+  "0005-ipu7-psys-harden-userptr-pinning.patch"
   "0003-icvs-set-rgbcamera_pwrup_host-0-for-Panther-Lake.patch"
   "0005-camhal-MediaControl-route-through-Intel-CVS-bridge.patch"
   "0006-camhal-ipu75xa-ov08x40-Intel-CVS-formats.patch"
@@ -79,7 +80,7 @@ source=(
   "hide-ipu7-v4l2.conf"
   "disable-libcamera.conf"
   "71-ipu7-hide-isys.rules"
-  "90-ipu7-psys.rules"
+  "70-ipu7-psys.rules"
   "camera-tmpfiles.conf"
   "ov08x40.yaml"
   "camera-sleep-hook"
@@ -94,12 +95,15 @@ sha256sums=(
   'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
   'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
   'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP' 'SKIP'
-  'SKIP'
+  'SKIP' 'SKIP'
 )
 
 prepare() {
   cd "${srcdir}/ipu7-drivers"
-  patch -Np1 -i "${srcdir}/0004-ipu7-psys-register-device-bus.patch"
+  # --fuzz=0: a security patch that lands somewhere other than its anchor still
+  # compiles, and the build is the only place that can refuse it.
+  patch -Np1 --fuzz=0 -i "${srcdir}/0004-ipu7-psys-register-device-bus.patch"
+  patch -Np1 --fuzz=0 -i "${srcdir}/0005-ipu7-psys-harden-userptr-pinning.patch"
 
   cd "${srcdir}/vision-drivers"
   git config user.email "build@localhost"
@@ -267,8 +271,10 @@ package() {
   # udev rules
   install -Dm644 "${srcdir}/71-ipu7-hide-isys.rules" \
     "${pkgdir}/usr/lib/udev/rules.d/71-ipu7-hide-isys.rules"
-  install -Dm644 "${srcdir}/90-ipu7-psys.rules" \
-    "${pkgdir}/usr/lib/udev/rules.d/90-ipu7-psys.rules"
+  # Root-only: the relay is the PSYS node's only user, and the driver's buffer
+  # lifecycle has use-after-free bugs that anyone who can open it can reach.
+  install -Dm644 "${srcdir}/70-ipu7-psys.rules" \
+    "${pkgdir}/usr/lib/udev/rules.d/70-ipu7-psys.rules"
 
   # v4l2-relayd config for IPU7 camera
   install -Dm644 "${srcdir}/v4l2-relayd-ipu7.conf" \
