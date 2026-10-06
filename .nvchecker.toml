@@ -318,6 +318,9 @@ source = "github"
 github = "pingdotgg/t3code"
 use_max_tag = true
 prefix = "v"
+# The repo tags every nightly and preview build; only the plain vX.Y.Z tags are
+# releases the recipe follows.
+include_regex = "^v?[0-9]+\\.[0-9]+\\.[0-9]+$"
 
 # --- Vendor apt repositories: the recipes repackage these .debs ------------
 # The AUR lags these feeds by weeks, so track the stable suite directly.
