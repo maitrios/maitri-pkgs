@@ -37,6 +37,10 @@ jobs:
         lane: [core, heavy]
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
     steps:
       - uses: actions/checkout@v4
 
@@ -112,6 +116,14 @@ jobs:
           path: work/built
           if-no-files-found: ignore
           retention-days: 3
+
+      # Only packages built in this run carry an attestation; ones reused from
+      # the published cache keep the attestation from the run that built them.
+      - name: Attest package build provenance
+        if: always() && hashFiles('work/built/*.pkg.tar.zst') != ''
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: work/built/*.pkg.tar.zst
 
   publish:
     needs: build
