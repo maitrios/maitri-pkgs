@@ -107,3 +107,11 @@ while IFS=$'\t' read -r name id _; do
   echo "deleting stale asset: $name"
   gh_retry gh api -X DELETE "repos/$repo/releases/assets/$id" >/dev/null
 done <"$tmp/assets.tsv"
+
+packages=(*.pkg.tar.zst)
+notes="Rolling maitri package channel: $channel."$'\n\n'"Last published $(date -u '+%Y-%m-%d %H:%M UTC')"
+[[ -n ${GITHUB_SHA:-} ]] && notes+=" from $repo@${GITHUB_SHA:0:7}"
+[[ -n ${GITHUB_RUN_ID:-} ]] && notes+=" ([run](${GITHUB_SERVER_URL:-https://github.com}/$repo/actions/runs/$GITHUB_RUN_ID))"
+notes+=", ${#packages[@]} packages."
+gh_retry gh release edit "$channel" -R "$repo" --notes "$notes" >/dev/null ||
+  echo "::warning::could not update the $channel release notes"

@@ -188,4 +188,4 @@ jobs:
           chown -R publisher:publisher /work/repo
           printf '%s' "${{ secrets.MAITRI_GPG_PRIVATE_KEY }}" | sudo -u publisher gpg --batch --import
           install -o publisher -m 755 .github/publish-channel.sh .github/release-api.sh /work/
-          sudo -u publisher env GH_TOKEN="$GH_TOKEN" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" PKGBUILDS_DIR="$PWD/pkgbuilds" bash /work/publish-channel.sh "${{ matrix.channel }}"
+          sudo -u publisher env GH_TOKEN="$GH_TOKEN" GITHUB_REPOSITORY="$GITHUB_REPOSITORY" GITHUB_SHA="$GITHUB_SHA" GITHUB_RUN_ID="$GITHUB_RUN_ID" GITHUB_SERVER_URL="$GITHUB_SERVER_URL" PKGBUILDS_DIR="$PWD/pkgbuilds" bash /work/publish-channel.sh "${{ matrix.channel }}"
