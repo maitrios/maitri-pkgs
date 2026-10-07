@@ -49,6 +49,10 @@ strip_release = true
 source = "aur"
 strip_release = true
 
+[hyprmoncfg]
+source = "aur"
+strip_release = true
+
 [lib32-nvidia-580xx-utils]
 source = "aur"
 strip_release = true
