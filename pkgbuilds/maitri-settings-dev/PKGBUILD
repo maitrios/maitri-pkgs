@@ -214,7 +214,7 @@ ID=maitri
 ID_LIKE=arch
 BUILD_ID="$pkgver"
 VERSION_ID="$pkgver"
-ANSI_COLOR="38;2;130;170;255"
+ANSI_COLOR="38;2;176;140;255"
 HOME_URL="https://kindness.ai/"
 DOCUMENTATION_URL="https://github.com/maitrios/maitri#readme"
 SUPPORT_URL="https://github.com/maitrios/maitri/issues"
@@ -327,6 +327,10 @@ EOF
   # desktop/system-info tools that use the freedesktop icon lookup rules.
   install -Dm644 icon.png "$pkgdir/usr/share/pixmaps/maitri.png"
   install -Dm644 icon.png "$pkgdir/usr/share/icons/hicolor/256x256/apps/maitri.png"
+  # Older release pins have no brand sources; the PNG above covers them.
+  if [[ -f assets/brand/icon.svg ]]; then
+    install -Dm644 assets/brand/icon.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/maitri.svg"
+  fi
 
   # Seed the user-editable branding files into /etc/skel so fresh users
   # have working defaults for `maitri screensaver` and the About screen
