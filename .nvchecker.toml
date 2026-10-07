@@ -45,10 +45,6 @@ strip_release = true
 source = "aur"
 strip_release = true
 
-[hyprmon-bin]
-source = "aur"
-strip_release = true
-
 [hyprmoncfg]
 source = "aur"
 strip_release = true
