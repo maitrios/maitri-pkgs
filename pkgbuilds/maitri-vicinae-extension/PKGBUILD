@@ -8,7 +8,7 @@
 # (Vicinae only loads extensions from ~/.local/share/vicinae/extensions).
 pkgname=maitri-vicinae-extension
 pkgver=1.0.0
-pkgrel=1
+pkgrel=2
 pkgdesc="maitri menu, keybindings and pickers for Vicinae"
 arch=('any')
 url="https://github.com/maitrios/maitri-vicinae"
@@ -28,5 +28,5 @@ package() {
   local dest="$pkgdir/usr/share/maitri/vicinae-extension"
   install -d "$dest"
   # The release tarball unpacks directly to package.json + *.js + assets/ + icon.png.
-  tar -xzf "$srcdir/$pkgname-$pkgver.tar.gz" -C "$dest"
+  tar --no-same-owner -xzf "$srcdir/$pkgname-$pkgver.tar.gz" -C "$dest"
 }
