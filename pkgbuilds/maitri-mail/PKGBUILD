@@ -1,0 +1,62 @@
+# Maintainer: Kindness <c@k7.dev>
+
+# The maitri build of huacnlee/omamail by Jason Lee. A vX.Y.Z-maitri.N tag becomes
+# pkgver X.Y.Z.N, so it sorts between upstream releases.
+pkgname=maitri-mail
+_tag=v0.10.8
+pkgver=0.10.8
+pkgrel=1
+pkgdesc='Mail and calendar for the maitri shell (fork of omamail by Jason Lee)'
+arch=('x86_64')
+url='https://github.com/maitrios/maitri-mail'
+license=('MIT')
+depends=(
+  'quickshell'
+  'qt6-declarative'
+  'python'
+  'bash'
+  'curl'
+  'openssl'
+  'socat'
+  'libsecret'
+  'libnotify'
+  'xdg-utils'
+  'wl-clipboard'
+  'libgcc'
+  'glibc'
+)
+optdepends=(
+  'desktop-file-utils: refresh the mailto: handler database'
+  'zenity: fallback attachment picker'
+)
+makedepends=('rust')
+checkdepends=('nodejs' 'python')
+options=('!lto' '!debug')
+source=("${pkgname}-${_tag#v}.tar.gz::${url}/releases/download/${_tag}/${pkgname}-${_tag#v}.tar.gz")
+sha256sums=('c4c74ae6f8a0de17497e02cfba2a6ae91566b0766587ba07f13a1c4b54e68718')
+
+prepare() {
+  cd "${pkgname}-${_tag#v}"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "${pkgname}-${_tag#v}"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --bin maitri-mail
+}
+
+check() {
+  cd "${pkgname}-${_tag#v}"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo test --frozen --features integration-test-credentials
+  test "$(target/release/maitri-mail --version)" = "maitri-mail $(cat backend-version)"
+}
+
+package() {
+  cd "${pkgname}-${_tag#v}"
+  bash tools/install.sh --destdir "${pkgdir}" --binary target/release/maitri-mail
+}

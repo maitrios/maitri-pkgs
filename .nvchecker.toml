@@ -313,6 +313,14 @@ github = "maitrios/maitri-vicinae"
 use_max_tag = true
 prefix = "v"
 
+[maitri-mail]
+source = "github"
+github = "maitrios/maitri-mail"
+use_max_tag = true
+prefix = "v"
+from_pattern = '-maitri\.'
+to_pattern = '.'
+
 [t3code-bin]
 source = "github"
 github = "pingdotgg/t3code"
