@@ -1,4 +1,4 @@
-# Maintainer: Kindness <hello@kindness.ai>
+# Maintainer: Kindness <c@k7.dev>
 # Release versioning convention (do not "fix" this; enforced by scripts/bump-maitri):
 #  - Pre-releases use the ATTACHED form pkgver=X.Y.ZrcN — NO separator. pacman's
 #    vercmp orders 0.3.0rc1 < 0.3.0rc2 < 0.3.0, but 0.3.0.rc1 and 0.3.0_rc1
