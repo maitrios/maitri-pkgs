@@ -7,7 +7,7 @@
 # `maitri-refresh-vicinae-extension` copies it into the user's Vicinae extensions dir
 # (Vicinae only loads extensions from ~/.local/share/vicinae/extensions).
 pkgname=maitri-vicinae-extension
-pkgver=1.0.0
+pkgver=1.0.1
 pkgrel=1
 pkgdesc="maitri menu, keybindings and pickers for Vicinae"
 arch=('any')
@@ -22,11 +22,11 @@ noextract=("$pkgname-$pkgver.tar.gz")
 source=("$pkgname-$pkgver.tar.gz::${url}/releases/download/v${pkgver}/${_asset}")
 
 # From maitri-vicinae-extension.tar.gz.sha256 on the maitri-vicinae v$pkgver release.
-sha256sums=('1672b1a8ab76506e44d2ae273374330d3af69a3339249182dd160aa5cea459c6')
+sha256sums=('c903291e0dbc43a11d812b9682a60b91d3efd7135f5ca7e021581cb17004b585')
 
 package() {
   local dest="$pkgdir/usr/share/maitri/vicinae-extension"
   install -d "$dest"
   # The release tarball unpacks directly to package.json + *.js + assets/ + icon.png.
-  tar -xzf "$srcdir/$pkgname-$pkgver.tar.gz" -C "$dest"
+  tar --no-same-owner -xzf "$srcdir/$pkgname-$pkgver.tar.gz" -C "$dest"
 }

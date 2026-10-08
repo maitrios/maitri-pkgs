@@ -336,10 +336,18 @@ mirror = "https://persistent.oaistatic.com/codex-app-prod/linux/deb"
 suite = "stable"
 pkg = "chatgpt"
 
+# --- Vendor update feeds ------------------------------------------------------
+# Apply a grok-bot bump with pkgbuilds/grok-bot/update-pkgver.sh, which pins the
+# commit and checksums from the same feed.
+[grok-bot]
+source = "regex"
+url = "https://api2.cursor.sh/updates/api/update/linux-x64/sand/0.0.0/00000000-0000-0000-0000-000000000000/stable"
+regex = '"version":"([0-9.]+)"'
+
 # Checked by hand: maitri-nvim (LazyVim starter pin), maitri-dev, linux-ptl (Arch kernel patch set),
 # ttf-ia-writer (pkgver is the pinned commit's date plus a revision count, which no feed publishes;
 # the AUR package is seven years behind the fonts we ship),
-# dell-xps13-sidecar-amps, hermes-desktop (omarchy-pkgs date pin), grok-bot (Cursor CDN, no index),
+# dell-xps13-sidecar-amps, hermes-desktop (omarchy-pkgs date pin),
 # perplexity (https://packages.perplexity.ai/deb/dists/stable/main/binary-amd64/Packages carries the
 # version without the +buildNNNN suffix the .deb filename needs, so nvcmp cannot compare it).
 #

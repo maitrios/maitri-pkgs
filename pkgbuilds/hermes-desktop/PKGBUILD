@@ -5,8 +5,8 @@
 # so the upstream updater can rebuild and relaunch it in place.
 
 pkgname=hermes-desktop
-pkgver=2026.9.7
-pkgrel=3
+pkgver=2026.9.24
+pkgrel=1
 pkgdesc='Native desktop shell for Hermes Agent'
 arch=('x86_64')
 url='https://github.com/NousResearch/hermes-agent'
@@ -66,7 +66,7 @@ options=('!strip' '!debug')
 # before falling back to `git rev-parse`. That fallback is wrong here: makepkg
 # builds inside this repository, so git ascends out of srcdir and stamps the
 # app with an omarchy-pkgs commit that means nothing upstream.
-_commit=2237be355906fbe6065ce1815711eee52b2d646e
+_commit=f97608f178d1ffeca59860195ab7da295f7c8e5f
 
 _srcdir="hermes-agent-${pkgver}"
 source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz"
@@ -75,7 +75,7 @@ source=("${pkgname}-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz
         'hermes-desktop.png'
         'runtime.patch'
         'runtime-test.py')
-sha256sums=('907c2a72db1c5dd637ea8eeae97f4cb5b32cef615c17258f6b190924ec5bf688'
+sha256sums=('15b15ce4e6ec8ea424a081823709d1e17f0943e7b42b59597d24ebb94cbd1742'
             'f7519cee8e0f64d9c4859dc1d2eb7e223f94ab22ab522a66cbaada05944ef71b'
             '3ef685bfcf366776b025d26c37d32854d8d4aa2023b2bd07c8e08b001ef1e8c4'
             'd60d164e24fdcf6532133b8ea43c77a201e4b9e9dbc396187b58d51d8590ef52'

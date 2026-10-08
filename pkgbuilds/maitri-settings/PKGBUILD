@@ -66,7 +66,6 @@ backup=(
   'etc/sddm.conf.d/10-wayland.conf'
   'etc/sudoers.d/maitri-dns'
   'etc/sudoers.d/maitri-passwd-tries'
-  'etc/sudoers.d/maitri-theme-browser'
   'etc/sudoers.d/maitri-tzupdate'
   'etc/sysctl.d/90-maitri-file-watchers.conf'
   'etc/sysctl.d/99-maitri-sysctl.conf'

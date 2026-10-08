@@ -1,2 +1,10 @@
 .nvchecker/
 __pycache__/
+
+# makepkg downloads and build output
+pkgbuilds/*/*.tar.*
+pkgbuilds/*/*.zip
+pkgbuilds/*/*.deb
+pkgbuilds/*/*.AppImage
+pkgbuilds/*/src/
+pkgbuilds/*/pkg/
