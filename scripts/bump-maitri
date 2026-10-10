@@ -34,8 +34,11 @@ normalize_tag() {
 version_base() { printf '%s\n' "${1%%rc*}"; }
 
 resolve_tag_commit() {
-  local tag=$1 line
-  line=$(git ls-remote "$SOURCE_REPO" "refs/tags/$tag^{}" "refs/tags/$tag" | head -1) || true
+  local tag=$1 refs line
+  refs=$(git ls-remote "$SOURCE_REPO" "refs/tags/$tag^{}" "refs/tags/$tag") || true
+  # ls-remote lists the tag before its peeled ^{} line, and for an annotated tag
+  # only the peeled line names the commit.
+  line=$(grep -F "refs/tags/$tag^{}" <<<"$refs" || head -1 <<<"$refs")
   [[ -n $line ]] || fail "tag $tag not found on $SOURCE_REPO (push the tag first)"
   printf '%s\n' "${line%%$'\t'*}"
 }
