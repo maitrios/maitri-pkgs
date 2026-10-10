@@ -6,7 +6,7 @@ _npmmodule=@github/copilot
 pkgname=github-copilot-cli
 _pkgexec=copilot
 
-pkgver=1.0.94
+pkgver=1.0.95
 pkgrel=1
 
 pkgdesc="GitHub Copilot CLI brings the power of Copilot coding agent directly to your terminal."
@@ -14,7 +14,7 @@ pkgdesc="GitHub Copilot CLI brings the power of Copilot coding agent directly to
 url="https://github.com/github/copilot-cli"
 _urlraw="https://raw.githubusercontent.com/github/copilot-cli/v${pkgver}"
 
-arch=("x86_64")
+arch=("x86_64" "aarch64")
 
 license=("LicenseRef-GitHub-Copilot")
 
@@ -30,8 +30,10 @@ source=("https://registry.npmjs.org/${_npmmodule}/-/copilot-${pkgver}.tgz"
 		"CHANGELOG-${pkgver}.md::${_urlraw}/changelog.md")
 noextract=("copilot-${pkgver}.tgz")
 
-b2sums=('dd7f69fc0c0ee382ec7d1de9fdfc3e5d9b61f634f8fcc168ed86f5f08d1a342b49180138bf8c93e7ab0c657018dc12b0fbfcc205e6a1a6b4b31e94b6fd44ed0b'
-        '3eb2c1ff39261f4913dca7b920a008b416c29bd2bd1f82edb9123b6197c13e25aa7e4ac98d9602def3d035229a6e82835161b196dc31f187bb9e9ba530b3de72')
+sha256sums=(
+  '838be5537db8bd0f7c7c2e555063770ab559249cf2c3ff3c23b2efc81c854779'
+  '69e525b67e95840ce11eaf128e4c4f94ecba2512ff9321335fd22bdd4d252e47'
+)
 
 # Document: https://wiki.archlinux.org/title/Node.js_package_guidelines
 package() {
@@ -53,23 +55,18 @@ package() {
 
 	msg2 "Cleaning non-native prebuilds for ${_arch}"
 	if [ -d "${_moddir}/prebuilds" ]; then
-		msg2 "Cleaning 'prebuilds'"
 		find "${_moddir}/prebuilds" -mindepth 1 -maxdepth 1 -type d ! -name "linux-${_arch}" -exec rm -rf {} +
 	fi
 	if [ -d "${_moddir}/mxc-bin" ]; then
-		msg2 "Cleaning 'mxc-bin'"
 		find "${_moddir}/mxc-bin" -mindepth 1 -maxdepth 1 -type d ! -name "${_arch}" -exec rm -rf {} +
 	fi
 	if [ -d "${_moddir}/ripgrep/bin" ]; then
-		msg2 "Cleaning 'ripgrep/bin'"
 		find "${_moddir}/ripgrep/bin" -mindepth 1 -maxdepth 1 -type d ! -name "linux-${_arch}" -exec rm -rf {} +
 	fi
 	if [ -d "${_moddir}/clipboard/node_modules/@teddyzhu" ]; then
-		msg2 "Cleaning 'clipboard/node_modules/@teddyzhu'"
 		find "${_moddir}/clipboard/node_modules/@teddyzhu" -mindepth 1 -maxdepth 1 -type d ! -name "clipboard-linux-${_arch}-gnu" -exec rm -rf {} +
 	fi
 	if [ -d "${_moddir}/foundry-local-sdk/node_modules/foundry-local-sdk/prebuilds" ]; then
-		msg2 "Cleaning 'foundry-local-sdk/node_modules/foundry-local-sdk/prebuilds'"
 		find "${_moddir}/foundry-local-sdk/node_modules/foundry-local-sdk/prebuilds" -mindepth 1 -maxdepth 1 -type d ! -name "linux-${_arch}" -exec rm -rf {} +
 	fi
 
@@ -129,4 +126,3 @@ package() {
 	ln -sf "/usr/lib/node_modules/${_npmmodule}/LICENSE.md" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
 
 }
-
