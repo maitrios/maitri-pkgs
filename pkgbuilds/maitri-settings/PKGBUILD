@@ -310,6 +310,11 @@ EOF
     install -Dm755 default/systemd/system-sleep/lid-input-wake \
       "$pkgdir/usr/lib/systemd/system-sleep/lid-input-wake"
   fi
+  # Older release pins don't have the WWAN wake hook yet.
+  if [[ -f default/systemd/system-sleep/wwan-wake ]]; then
+    install -Dm755 default/systemd/system-sleep/wwan-wake \
+      "$pkgdir/usr/lib/systemd/system-sleep/wwan-wake"
+  fi
 
   # Branding assets (logos, icons).
   install -Dm644 logo.txt "$pkgdir/usr/share/maitri/logo.txt"
