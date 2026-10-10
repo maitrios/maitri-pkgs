@@ -305,6 +305,11 @@ EOF
   # systemd path so the hook fires.
   install -Dm755 default/systemd/system-sleep/unmount-fuse \
     "$pkgdir/usr/lib/systemd/system-sleep/unmount-fuse"
+  # Older release pins don't have the lid input wake hook yet.
+  if [[ -f default/systemd/system-sleep/lid-input-wake ]]; then
+    install -Dm755 default/systemd/system-sleep/lid-input-wake \
+      "$pkgdir/usr/lib/systemd/system-sleep/lid-input-wake"
+  fi
 
   # Branding assets (logos, icons).
   install -Dm644 logo.txt "$pkgdir/usr/share/maitri/logo.txt"
