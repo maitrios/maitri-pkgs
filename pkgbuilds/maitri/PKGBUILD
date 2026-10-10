@@ -10,9 +10,9 @@
 #    provenance only (empty when cut from a bare commit). maitri and
 #    maitri-settings must always carry identical _tag/_commit/pkgver/sha256sums.
 pkgname='maitri'
-_tag='v0.5.1'
-_commit='3998965b640b2c7c49523ffe6b4eb345feb9b8d0'
-pkgver=0.5.1
+_tag='v0.5.2'
+_commit='52abc01dfc1d4705b0671282ef86d5624cc3c670'
+pkgver=0.5.2
 pkgrel=1
 pkgdesc='A beautiful, opinionated Arch Linux desktop by Kindness, grown from Omarchy'
 arch=('x86_64')
