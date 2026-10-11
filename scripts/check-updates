@@ -45,3 +45,32 @@ echo "── Packages behind upstream (current → latest) ──"
 if ! nvcmp -c .nvchecker.toml; then
   : # nvcmp exits non-zero when there are differences; that's expected output, not an error
 fi
+
+# 4. Entries nvchecker could not resolve. nvcmp only compares what it fetched, so
+#    an entry that errors (a rate-limited API, a renamed repo) silently drops out
+#    of the list above and reads as "not behind". Name them instead.
+echo
+python3 - <<'PY'
+import json, pathlib, re, sys
+
+config = pathlib.Path(".nvchecker.toml").read_text()
+sources = {}
+section = None
+for line in config.splitlines():
+    header = re.match(r"^\[([A-Za-z0-9._-]+)\]", line)
+    if header:
+        section = header.group(1)
+        sources[section] = "?"
+    elif section and line.startswith("source"):
+        sources[section] = line.split("=", 1)[1].strip().strip('"')
+sources.pop("__config__", None)
+
+fetched = json.loads(pathlib.Path(".nvchecker/newver.json").read_text())["data"]
+missing = sorted(name for name in sources if not fetched.get(name))
+if not missing:
+    sys.exit(0)
+
+print("── Not checked: nvchecker returned no result (NOT confirmed up to date) ──")
+for name in missing:
+    print(f"{name} (source = {sources[name]})")
+PY
