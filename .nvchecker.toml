@@ -345,8 +345,9 @@ suite = "stable"
 pkg = "chatgpt"
 
 # --- Vendor update feeds ------------------------------------------------------
-# Apply a grok-bot bump with pkgbuilds/grok-bot/update-pkgver.sh, which reads the
-# version from this feed and pins the checksums from the apt pool the sources use.
+# Apply a grok-bot bump with pkgbuilds/grok-bot/update-pkgver.sh, which pins the
+# commit and checksums from the same feed. Cursor's apt index does not list
+# grok-bot, so the versioned pool path is not a usable source for it.
 [grok-bot]
 source = "regex"
 url = "https://api2.cursor.sh/updates/api/update/linux-x64/sand/0.0.0/00000000-0000-0000-0000-000000000000/stable"
