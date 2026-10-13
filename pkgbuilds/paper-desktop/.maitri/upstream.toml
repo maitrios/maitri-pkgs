@@ -1,0 +1,8 @@
+auto_merge = true
+
+[apt]
+repo = "https://download.paper.design/apt"
+suite = "stable"
+package = "paper"
+key = "todesktop.asc"
+filename = "paper-desktop-{pkgver}-build-{_build}-{arch}.deb"

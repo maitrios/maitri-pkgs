@@ -1,0 +1,8 @@
+auto_merge = true
+
+[apt]
+repo = "https://packages.perplexity.ai/deb"
+suite = "stable"
+package = "perplexity"
+key = "perplexity.asc"
+filename = "perplexity_{pkgver}_{arch}.deb"

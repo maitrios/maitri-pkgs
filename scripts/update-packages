@@ -1,0 +1,635 @@
+#!/usr/bin/env python3
+"""Move recipes to their newest upstream release.
+
+    scripts/update-packages [--dry-run] [--report FILE] [NAME...]
+
+How a recipe updates comes from pkgbuilds/<name>/.maitri/upstream.toml, or
+from its .nvchecker.toml entry when it has none. README.md, "Automatic
+updates", describes both. PKGBUILDs are rewritten in place; --dry-run puts
+them back afterwards and skips updpkgsums.
+
+Needs Python 3.11+, bash, gpgv, vercmp, nvchecker and updpkgsums.
+"""
+
+import argparse
+import base64
+import functools
+import gzip
+import hashlib
+import json
+import lzma
+import os
+import re
+import subprocess
+import sys
+import tempfile
+import time
+import tomllib
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent.parent
+PKGBUILDS = ROOT / "pkgbuilds"
+NVCHECKER_CONFIG = ROOT / ".nvchecker.toml"
+DEB_ARCH = {"x86_64": "amd64", "aarch64": "arm64"}
+SAFE_VALUE = re.compile(r"[A-Za-z0-9._+]+")
+SHA256 = re.compile(r"[0-9a-f]{64}")
+IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+
+
+class UpdateError(Exception):
+    pass
+
+
+@dataclass
+class Recipe:
+    name: str
+    path: Path
+    meta: dict = field(default_factory=dict)
+
+    @property
+    def pkgbuild(self) -> Path:
+        return self.path / "PKGBUILD"
+
+
+@dataclass
+class Context:
+    dry_run: bool
+    nvchecker: dict = field(default_factory=dict)
+    nvchecker_config: dict = field(default_factory=dict)
+
+
+def tail(output: str, lines: int = 15) -> str:
+    return "\n".join(output.strip().splitlines()[-lines:])
+
+
+def fetch(url: str) -> bytes:
+    request = urllib.request.Request(
+        url, headers={"User-Agent": "maitri-pkgs-updater", "Cache-Control": "no-cache"}
+    )
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=60) as response:
+                return response.read()
+        except (urllib.error.URLError, TimeoutError) as error:
+            permanent = isinstance(error, urllib.error.HTTPError) and error.code < 500
+            if permanent or attempt == 2:
+                raise UpdateError(f"GET {url}: {error}") from error
+            time.sleep(5 * (attempt + 1))
+    raise AssertionError("unreachable")
+
+
+def read_vars(recipe: Path, names: list[str], carch: str = "x86_64") -> dict[str, list[str]]:
+    for name in names:
+        if not IDENTIFIER.fullmatch(name):
+            raise ValueError(name)
+    body = "".join(f'printf "%s\\0" "${{{name}[@]}}"; printf "\\1\\0"; ' for name in names)
+    result = subprocess.run(
+        ["bash", "-c", f"source ./PKGBUILD >/dev/null 2>&1 || exit 1; {body}"],
+        cwd=recipe,
+        env={**os.environ, "CARCH": carch},
+        capture_output=True,
+    )
+    if result.returncode:
+        raise UpdateError("PKGBUILD does not source cleanly")
+    values: dict[str, list[str]] = {}
+    current: list[str] = []
+    pending = iter(names)
+    for part in result.stdout.decode().split("\0")[:-1]:
+        if part == "\1":
+            values[next(pending)] = current
+            current = []
+        else:
+            current.append(part)
+    return values
+
+
+def has_function(recipe: Path, name: str) -> bool:
+    result = subprocess.run(
+        ["bash", "-c", f"source ./PKGBUILD >/dev/null 2>&1; declare -F {name}"],
+        cwd=recipe,
+        capture_output=True,
+    )
+    return result.returncode == 0
+
+
+def version_of(recipe: Path) -> tuple[str, str, str]:
+    values = read_vars(recipe, ["epoch", "pkgver", "pkgrel"])
+    if not values["pkgver"] or not values["pkgrel"]:
+        raise UpdateError("PKGBUILD sets no pkgver or pkgrel")
+    epoch = values["epoch"][0] if values["epoch"] else ""
+    return epoch, values["pkgver"][0], values["pkgrel"][0]
+
+
+def format_version(epoch: str, pkgver: str, pkgrel: str | None = None) -> str:
+    version = f"{epoch}:{pkgver}" if epoch and epoch != "0" else pkgver
+    return f"{version}-{pkgrel}" if pkgrel else version
+
+
+def vercmp(a: str, b: str) -> int:
+    result = subprocess.run(["vercmp", a, b], capture_output=True, text=True)
+    if result.returncode:
+        raise UpdateError(f"vercmp {a} {b} failed: {result.stderr.strip()}")
+    return int(result.stdout)
+
+
+def assign(text: str, name: str, value: str) -> str:
+    if not SAFE_VALUE.fullmatch(value):
+        raise UpdateError(f"refusing to write {name}={value!r}")
+    pattern = re.compile(rf"^{re.escape(name)}=.*$", re.M)
+    if len(pattern.findall(text)) != 1:
+        raise UpdateError(f"PKGBUILD must assign {name} exactly once, at the top level")
+    return pattern.sub(lambda _: f"{name}={value}", text)
+
+
+def assign_array(text: str, name: str, values: list[str]) -> str:
+    for value in values:
+        if not SAFE_VALUE.fullmatch(value):
+            raise UpdateError(f"refusing to write {value!r} into {name}")
+    pattern = re.compile(rf"^{re.escape(name)}=\([^)]*\)", re.M)
+    if len(pattern.findall(text)) != 1:
+        raise UpdateError(f"PKGBUILD must assign {name} exactly once, at the top level")
+    quoted = " ".join(f"'{value}'" for value in values)
+    return pattern.sub(lambda _: f"{name}=({quoted})", text)
+
+
+def _deb_order(char: str) -> int:
+    if not char or char.isdigit():
+        return 0
+    if char.isalpha():
+        return ord(char)
+    if char == "~":
+        return -1
+    return ord(char) + 256
+
+
+def _deb_compare_part(a: str, b: str) -> int:
+    i = j = 0
+    while i < len(a) or j < len(b):
+        while (i < len(a) and not a[i].isdigit()) or (j < len(b) and not b[j].isdigit()):
+            ac = _deb_order(a[i] if i < len(a) else "")
+            bc = _deb_order(b[j] if j < len(b) else "")
+            if ac != bc:
+                return ac - bc
+            i += 1
+            j += 1
+        while i < len(a) and a[i] == "0":
+            i += 1
+        while j < len(b) and b[j] == "0":
+            j += 1
+        first_diff = 0
+        while i < len(a) and a[i].isdigit() and j < len(b) and b[j].isdigit():
+            if not first_diff:
+                first_diff = ord(a[i]) - ord(b[j])
+            i += 1
+            j += 1
+        if i < len(a) and a[i].isdigit():
+            return 1
+        if j < len(b) and b[j].isdigit():
+            return -1
+        if first_diff:
+            return first_diff
+    return 0
+
+
+def deb_compare(a: str, b: str) -> int:
+    def split(version: str) -> tuple[int, str, str]:
+        epoch, sep, rest = version.partition(":")
+        if not sep:
+            epoch, rest = "0", version
+        upstream, sep, revision = rest.rpartition("-")
+        if not sep:
+            upstream, revision = rest, ""
+        return int(epoch or 0), upstream, revision
+
+    ea, ua, ra = split(a)
+    eb, ub, rb = split(b)
+    if ea != eb:
+        return ea - eb
+    return _deb_compare_part(ua, ub) or _deb_compare_part(ra, rb)
+
+
+def dearmor(armored: str) -> bytes:
+    lines = armored.strip().splitlines()
+    try:
+        start = lines.index("-----BEGIN PGP PUBLIC KEY BLOCK-----")
+    except ValueError:
+        raise UpdateError("key file is not an ASCII-armored public key") from None
+    body: list[str] = []
+    in_headers = True
+    for line in lines[start + 1:]:
+        if line.startswith("-----END "):
+            break
+        if in_headers:
+            if ":" in line:
+                continue
+            in_headers = False
+        if not line.strip() or line.startswith("="):
+            continue
+        body.append(line.strip())
+    return base64.b64decode("".join(body))
+
+
+def deb822(text: str) -> list[dict[str, str]]:
+    stanzas: list[dict[str, str]] = []
+    stanza: dict[str, str] = {}
+    key = None
+    for line in text.splitlines():
+        if not line.strip():
+            if stanza:
+                stanzas.append(stanza)
+            stanza, key = {}, None
+        elif line[0] in " \t":
+            if key:
+                stanza[key] += "\n" + line.strip()
+        else:
+            key, _, value = line.partition(":")
+            stanza[key] = value.strip()
+    if stanza:
+        stanzas.append(stanza)
+    return stanzas
+
+
+class AptFeed:
+    def __init__(self, config: dict, keyfile: Path):
+        self.repo = config["repo"].rstrip("/")
+        self.suite = config.get("suite", "stable")
+        self.component = config.get("component", "main")
+        self.package = config["package"]
+        self.inrelease_url = f"{self.repo}/dists/{self.suite}/InRelease"
+        self._packages: dict[str, list[dict[str, str]]] = {}
+        self.release, self.fingerprint = self._verified_release(keyfile)
+        self.hashes: dict[str, tuple[str, int]] = {}
+        for line in self.release.get("SHA256", "").splitlines():
+            parts = line.split()
+            if len(parts) == 3:
+                self.hashes[parts[2]] = (parts[0], int(parts[1]))
+
+    def _verified_release(self, keyfile: Path) -> tuple[dict[str, str], str]:
+        if not keyfile.is_file():
+            raise UpdateError(f"no signing key at {keyfile.relative_to(ROOT)}")
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            (home / "keyring.gpg").write_bytes(dearmor(keyfile.read_text()))
+            (home / "InRelease").write_bytes(fetch(self.inrelease_url))
+            check = subprocess.run(
+                [
+                    "gpgv", "--status-fd", "1",
+                    "--keyring", str(home / "keyring.gpg"),
+                    "--output", str(home / "Release"),
+                    str(home / "InRelease"),
+                ],
+                env={**os.environ, "GNUPGHOME": str(home)},
+                capture_output=True,
+                text=True,
+                errors="replace",
+            )
+            if check.returncode:
+                raise UpdateError(
+                    f"{self.inrelease_url} did not verify against {keyfile.name}:\n{tail(check.stderr, 4)}"
+                )
+            fingerprint = next(
+                (line.split()[2] for line in check.stdout.splitlines() if line.startswith("[GNUPG:] VALIDSIG ")),
+                "unknown",
+            )
+            stanzas = deb822((home / "Release").read_text())
+        if not stanzas:
+            raise UpdateError(f"{self.inrelease_url} is empty")
+        release = stanzas[0]
+        if self.suite not in (release.get("Suite"), release.get("Codename")):
+            raise UpdateError(f"{self.inrelease_url} is for suite {release.get('Suite')!r}, not {self.suite!r}")
+        if "Valid-Until" in release and parsedate_to_datetime(release["Valid-Until"]) < datetime.now(timezone.utc):
+            raise UpdateError(f"{self.inrelease_url} expired on {release['Valid-Until']}")
+        return release, fingerprint
+
+    def _index(self, debarch: str) -> list[dict[str, str]]:
+        if debarch in self._packages:
+            return self._packages[debarch]
+        base = f"{self.component}/binary-{debarch}/Packages"
+        for suffix, decode in (("", lambda data: data), (".xz", lzma.decompress), (".gz", gzip.decompress)):
+            path = base + suffix
+            if path not in self.hashes:
+                continue
+            digest, size = self.hashes[path]
+            if self.release.get("Acquire-By-Hash") == "yes":
+                url = f"{self.repo}/dists/{self.suite}/{self.component}/binary-{debarch}/by-hash/SHA256/{digest}"
+            else:
+                url = f"{self.repo}/dists/{self.suite}/{path}"
+            data = fetch(url)
+            if len(data) != size or hashlib.sha256(data).hexdigest() != digest:
+                raise UpdateError(f"{url} does not match the hash in the signed InRelease")
+            self._packages[debarch] = deb822(decode(data).decode())
+            return self._packages[debarch]
+        raise UpdateError(f"{self.inrelease_url} lists no {base}")
+
+    def newest(self, debarch: str) -> dict[str, str]:
+        candidates = [
+            stanza for stanza in self._index(debarch)
+            if stanza.get("Package") == self.package and stanza.get("Architecture") in (debarch, "all")
+        ]
+        if not candidates:
+            raise UpdateError(f"{self.package} is not in the {debarch} index")
+        return max(candidates, key=functools.cmp_to_key(lambda a, b: deb_compare(a["Version"], b["Version"])))
+
+
+def filename_pattern(template: str, debarch: str, patterns: dict[str, str]) -> re.Pattern:
+    parts: list[str] = []
+    seen: list[str] = []
+    position = 0
+    for match in PLACEHOLDER.finditer(template):
+        parts.append(re.escape(template[position:match.start()]))
+        name = match.group(1)
+        if name == "arch":
+            parts.append(re.escape(debarch))
+        elif name != "pkgver" and not name.startswith("_"):
+            raise UpdateError(f"filename placeholder {{{name}}} must be pkgver, arch or an _-prefixed recipe variable")
+        elif name in seen:
+            parts.append(f"(?P={name})")
+        else:
+            seen.append(name)
+            parts.append(f"(?P<{name}>{patterns.get(name, '[A-Za-z0-9.+]+?')})")
+        position = match.end()
+    parts.append(re.escape(template[position:]))
+    if "pkgver" not in seen:
+        raise UpdateError("the filename template needs {pkgver}")
+    return re.compile("".join(parts))
+
+
+def update_apt(recipe: Recipe, context: Context) -> list[str]:
+    config = recipe.meta["apt"]
+    keyfile = recipe.path / ".maitri" / config["key"]
+    feed = AptFeed(config, keyfile)
+    arches = read_vars(recipe.path, ["arch"])["arch"]
+
+    picks: dict[str, tuple[dict[str, str], str, str]] = {}
+    for carch in arches:
+        debarch = DEB_ARCH.get(carch)
+        if not debarch:
+            raise UpdateError(f"no Debian architecture for {carch}")
+        stanza = feed.newest(debarch)
+        filename = stanza.get("Filename", "")
+        basename = filename.rsplit("/", 1)[-1]
+        match = filename_pattern(config["filename"], debarch, config.get("patterns", {})).fullmatch(basename)
+        if not match:
+            raise UpdateError(f"{basename} does not match the filename template {config['filename']!r}")
+        digest = stanza.get("SHA256", "")
+        if not SHA256.fullmatch(digest):
+            raise UpdateError(f"{basename} has no usable SHA256 in the index")
+        picks[carch] = (match.groupdict(), digest, urllib.parse.urljoin(feed.repo + "/", filename))
+
+    releases = {tuple(sorted(captured.items())) for captured, _, _ in picks.values()}
+    if len(releases) != 1:
+        raise UpdateError(f"architectures disagree on the release: {sorted(releases)}")
+    captured = picks[arches[0]][0]
+
+    current = read_vars(recipe.path, [f"source_{carch}" for carch in arches])
+    for carch in arches:
+        if len(current[f"source_{carch}"]) != 1:
+            raise UpdateError(f"source_{carch} must hold only the .deb")
+
+    _, old_pkgver, _ = version_of(recipe.path)
+    if vercmp(captured["pkgver"], old_pkgver) < 0:
+        raise UpdateError(f"the index offers {captured['pkgver']}, older than the recipe's {old_pkgver}")
+
+    text = recipe.pkgbuild.read_text()
+    for name, value in captured.items():
+        text = assign(text, name, value)
+    for carch in arches:
+        text = assign_array(text, f"sha256sums_{carch}", [picks[carch][1]])
+    if captured["pkgver"] != old_pkgver:
+        text = assign(text, "pkgrel", "1")
+    recipe.pkgbuild.write_text(text)
+
+    for carch in arches:
+        source = read_vars(recipe.path, [f"source_{carch}"], carch)[f"source_{carch}"][0]
+        url = source.split("::", 1)[-1]
+        expected = picks[carch][2]
+        if urllib.parse.unquote(url) != urllib.parse.unquote(expected):
+            raise UpdateError(f"source_{carch} resolves to {url}, but the index has {expected}")
+
+    return [
+        f"[`InRelease`]({feed.inrelease_url}) signature verified against `.maitri/{config['key']}` "
+        f"(`{feed.fingerprint}`)",
+        "Every architecture's URL and SHA256 come from that signed index",
+    ]
+
+
+def update_script(recipe: Recipe, context: Context) -> list[str]:
+    script = recipe.meta["script"]["run"]
+    if "/" in script or not (recipe.path / script).is_file():
+        raise UpdateError(f"[script] run must name a file in the recipe directory, not {script!r}")
+    result = subprocess.run(["bash", script, "PKGBUILD"], cwd=recipe.path, capture_output=True, text=True)
+    if result.returncode:
+        raise UpdateError(f"{script} failed:\n{tail(result.stdout + result.stderr)}")
+    return [f"`{script}` pinned the release from the vendor's update feed",
+            "Checksums come from downloading the release; the feed carries no signature"]
+
+
+def upstream_link(name: str, entry: dict) -> str:
+    source = entry.get("source")
+    if source == "aur":
+        return f"[AUR {name}](https://aur.archlinux.org/cgit/aur.git/log/?h={name})"
+    if source == "github":
+        return f"[{entry['github']}](https://github.com/{entry['github']}/releases)"
+    if source == "gitlab":
+        host = entry.get("host", "gitlab.com")
+        return f"[{entry['gitlab']}](https://{host}/{entry['gitlab']}/-/tags)"
+    return f"nvchecker source `{source}`"
+
+
+def update_nvchecker(recipe: Recipe, context: Context) -> list[str]:
+    found = context.nvchecker.get(recipe.name)
+    if not found:
+        raise UpdateError("nvchecker returned no version (rate limited, or the upstream moved?)")
+    new = re.sub(r"^\d+:", "", found)
+    _, old, _ = version_of(recipe.path)
+    if vercmp(new, old) <= 0:
+        return []
+
+    arches = read_vars(recipe.path, ["arch"])["arch"]
+    source_names = ["source"] + [f"source_{carch}" for carch in arches if IDENTIFIER.fullmatch(f"source_{carch}")]
+    before = read_vars(recipe.path, source_names)
+
+    text = recipe.pkgbuild.read_text()
+    text = assign(text, "pkgver", new)
+    text = assign(text, "pkgrel", "1")
+    for name, template in recipe.meta.get("vars", {}).items():
+        if not name.startswith("_"):
+            raise UpdateError(f"[vars] may only set _-prefixed recipe variables, not {name}")
+        try:
+            value = template.format(pkgver=new)
+        except (KeyError, IndexError, ValueError) as error:
+            raise UpdateError(f"[vars] {name} = {template!r}: {error}") from None
+        text = assign(text, name, value)
+    recipe.pkgbuild.write_text(text)
+
+    if read_vars(recipe.path, source_names) == before:
+        raise UpdateError(
+            "no source follows pkgver, so a bump would rebuild the old release; declare what pins it "
+            "under [vars] in .maitri/upstream.toml, or set manual there"
+        )
+
+    if not context.dry_run:
+        with tempfile.TemporaryDirectory() as srcdest:
+            result = subprocess.run(
+                ["updpkgsums"], cwd=recipe.path, env={**os.environ, "SRCDEST": srcdest},
+                capture_output=True, text=True,
+            )
+        if result.returncode:
+            raise UpdateError(f"updpkgsums failed:\n{tail(result.stdout + result.stderr)}")
+
+    return [f"{upstream_link(recipe.name, context.nvchecker_config[recipe.name])} reports {found}",
+            "Checksums come from downloading the new sources; nothing upstream signs them",
+            "Only pkgver, pkgrel and the checksums moved, so check upstream for new dependencies "
+            "or packaging changes before merging"]
+
+
+METHODS = {"apt": update_apt, "script": update_script, "nvchecker": update_nvchecker}
+
+
+def method_for(recipe: Recipe, nvchecker_entries: dict) -> str | None:
+    if "manual" in recipe.meta:
+        return "manual"
+    for method in ("apt", "script"):
+        if method in recipe.meta:
+            return method
+    if recipe.name in nvchecker_entries:
+        if has_function(recipe.path, "pkgver"):
+            return None
+        return "nvchecker"
+    return None
+
+
+def update_recipe(recipe: Recipe, method: str, context: Context) -> dict:
+    original = recipe.pkgbuild.read_text()
+    before = version_of(recipe.path)
+    entry = {
+        "name": recipe.name,
+        "method": method,
+        "auto_merge": bool(recipe.meta.get("auto_merge", False)),
+        "old": format_version(*before),
+    }
+    try:
+        notes = METHODS[method](recipe, context)
+        text = recipe.pkgbuild.read_text()
+        if text == original:
+            entry["status"] = "current"
+            return entry
+        after = version_of(recipe.path)
+        if after[:2] == before[:2]:
+            if after[2] == before[2]:
+                if not before[2].isdigit():
+                    raise UpdateError(f"cannot bump pkgrel {before[2]!r}")
+                recipe.pkgbuild.write_text(assign(text, "pkgrel", str(int(before[2]) + 1)))
+        elif vercmp(format_version(*after[:2]), format_version(*before[:2])) <= 0:
+            raise UpdateError(f"refusing to move {format_version(*before)} back to {format_version(*after)}")
+        new = version_of(recipe.path)
+        entry.update(status="updated", new=format_version(*new), notes=notes)
+        if new[:2] == before[:2]:
+            entry["title"] = f"chore({recipe.name}): repin {format_version(*new)} to upstream's rebuild"
+        else:
+            entry["title"] = f"chore({recipe.name}): update to {format_version(*new[:2])}"
+    except UpdateError as error:
+        recipe.pkgbuild.write_text(original)
+        entry.update(status="failed", error=str(error))
+    finally:
+        if context.dry_run:
+            recipe.pkgbuild.write_text(original)
+    return entry
+
+
+def toml_value(value) -> str:
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str):
+        return json.dumps(value)
+    if isinstance(value, list):
+        return "[" + ", ".join(toml_value(item) for item in value) + "]"
+    raise TypeError(f"cannot write {value!r} as TOML")
+
+
+def run_nvchecker(names: list[str], config: dict) -> dict[str, str]:
+    if not names:
+        return {}
+    with tempfile.TemporaryDirectory() as tmp:
+        settings = {"oldver": f"{tmp}/old.json", "newver": f"{tmp}/new.json"}
+        token = os.environ.get("GITHUB_TOKEN")
+        if token:
+            Path(tmp, "keys.toml").write_text(f"[keys]\ngithub = {json.dumps(token)}\n")
+            settings["keyfile"] = f"{tmp}/keys.toml"
+        lines = ["[__config__]"] + [f"{key} = {toml_value(value)}" for key, value in settings.items()]
+        for name in names:
+            lines += ["", f"[{json.dumps(name)}]"]
+            lines += [f"{key} = {toml_value(value)}" for key, value in config[name].items()]
+        Path(tmp, "nvchecker.toml").write_text("\n".join(lines) + "\n")
+        result = subprocess.run(["nvchecker", "-c", f"{tmp}/nvchecker.toml"], capture_output=True, text=True)
+        newver = Path(tmp, "new.json")
+        if not newver.exists():
+            raise SystemExit(f"nvchecker produced no results:\n{tail(result.stdout + result.stderr)}")
+        data = json.loads(newver.read_text()).get("data", {})
+    return {name: info["version"] for name, info in data.items() if info.get("version")}
+
+
+def load_recipes(names: list[str]) -> list[Recipe]:
+    available = {path.parent.name: path.parent for path in PKGBUILDS.glob("*/PKGBUILD")}
+    unknown = sorted(set(names) - set(available))
+    if unknown:
+        raise SystemExit(f"no such recipe: {' '.join(unknown)}")
+    recipes = []
+    for name in sorted(names or available):
+        recipe = Recipe(name, available[name])
+        upstream = recipe.path / ".maitri" / "upstream.toml"
+        if upstream.exists():
+            recipe.meta = tomllib.loads(upstream.read_text())
+        recipes.append(recipe)
+    return recipes
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="Move recipes to their newest upstream release.")
+    parser.add_argument("names", nargs="*", metavar="NAME", help="recipes to check (default: all)")
+    parser.add_argument("--report", type=Path, help="write a JSON report here")
+    parser.add_argument("--dry-run", action="store_true", help="put every PKGBUILD back afterwards and skip updpkgsums")
+    args = parser.parse_args()
+
+    recipes = load_recipes(args.names)
+    nvchecker_config = tomllib.loads(NVCHECKER_CONFIG.read_text())
+    nvchecker_config.pop("__config__", None)
+    plan = [(recipe, method_for(recipe, nvchecker_config)) for recipe in recipes]
+
+    context = Context(dry_run=args.dry_run, nvchecker_config=nvchecker_config)
+    context.nvchecker = run_nvchecker([r.name for r, method in plan if method == "nvchecker"], nvchecker_config)
+
+    report = []
+    for recipe, method in plan:
+        if method is None:
+            continue
+        if method == "manual":
+            entry = {"name": recipe.name, "method": "manual", "status": "manual", "reason": recipe.meta["manual"]}
+        else:
+            entry = update_recipe(recipe, method, context)
+        report.append(entry)
+        line = f"{entry['status']:<8} {recipe.name:<34} {method:<10}"
+        if entry["status"] == "updated":
+            line += f" {entry['old']} -> {entry['new']}"
+        elif entry["status"] == "failed":
+            line += " " + entry["error"].splitlines()[0]
+        print(line, flush=True)
+
+    if args.report:
+        args.report.write_text(json.dumps(report, indent=2) + "\n")
+    counts = {status: sum(1 for e in report if e["status"] == status) for status in ("updated", "current", "failed", "manual")}
+    print(", ".join(f"{count} {status}" for status, count in counts.items()), file=sys.stderr)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

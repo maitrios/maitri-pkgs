@@ -1,0 +1,170 @@
+name: Update packages
+
+# Checks every recipe's upstream (scripts/update-packages), builds each update
+# in a fresh container, then opens or refreshes one PR per package on
+# auto/<name>. Recipes whose .maitri/upstream.toml sets auto_merge merge as
+# soon as their build passes, and build-pkgs.yml is started for them, since a
+# merge made with GITHUB_TOKEN does not trigger it. Discovery and the build
+# run with a read-only token; only the last job can write.
+
+on:
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+    inputs:
+      packages:
+        description: "Only check these packages (space separated); empty checks every recipe. Named packages rebuild even when their PR is unchanged."
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-packages
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    outputs:
+      packages: ${{ steps.plan.outputs.packages }}
+    steps:
+      - name: Install tooling
+        run: pacman -Syu --noconfirm --needed --noprogressbar base-devel git gnupg jq nvchecker pacman-contrib python
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # makepkg, and so updpkgsums, refuses to run as root.
+      - name: Look for upstream releases
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PACKAGES: ${{ inputs.packages }}
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          useradd -m updater
+          chown -R updater: .
+          # shellcheck disable=SC2086
+          runuser -u updater -- python3 scripts/update-packages --report report.json $PACKAGES
+
+      - name: Plan the PRs
+        id: plan
+        env:
+          FORCE: ${{ inputs.packages }}
+        run: |
+          mkdir -p updates/patches
+          mv report.json updates/
+          : >updates/unchanged.txt
+          git fetch --no-tags origin '+refs/heads/auto/*:refs/remotes/origin/auto/*' || true
+          for name in $(jq -r '.[] | select(.status == "updated") | .name' updates/report.json); do
+            git diff -- "pkgbuilds/$name" >"updates/patches/$name.patch"
+            if [[ -z $FORCE ]] && git rev-parse -q --verify "refs/remotes/origin/auto/$name" >/dev/null &&
+              git diff --quiet "origin/auto/$name" -- "pkgbuilds/$name"; then
+              echo "$name" >>updates/unchanged.txt
+            fi
+          done
+          packages=$(jq -c --rawfile unchanged updates/unchanged.txt \
+            '[.[] | select(.status == "updated") | .name] - ($unchanged | split("\n"))' updates/report.json)
+          echo "packages=$packages" >>"$GITHUB_OUTPUT"
+          echo "to build: $packages"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: updates
+          path: updates
+          retention-days: 7
+
+  verify:
+    needs: discover
+    if: needs.discover.outputs.packages != '[]'
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        package: ${{ fromJSON(needs.discover.outputs.packages) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: updates
+          path: updates
+
+      - name: Apply the update
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: git apply "updates/patches/$PACKAGE.patch"
+
+      - name: Free disk space for the heavy lane
+        if: contains(fromJSON('["linux-ptl", "sunshine"]'), matrix.package)
+        uses: jlumbroso/free-disk-space@36e9a5af4eddb91fc11aec4c6f6f79b3cc0cb523 # main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: false
+          swap-storage: true
+
+      - name: Build
+        id: build
+        env:
+          PACKAGE: ${{ matrix.package }}
+        run: |
+          docker run --rm \
+            -v "$PWD/pkgbuilds/$PACKAGE:/work/recipe:ro" \
+            -v "$PWD/pkgbuilds/maitri-keyring:/work/keyring:ro" \
+            -v "$PWD/.github/verify-package.sh:/work/verify-package.sh:ro" \
+            archlinux:latest bash /work/verify-package.sh /work/recipe /work/keyring
+
+      - name: Record the result
+        if: always()
+        env:
+          PACKAGE: ${{ matrix.package }}
+          OUTCOME: ${{ steps.build.outcome }}
+        run: |
+          mkdir -p result
+          jq -n --arg name "$PACKAGE" --arg outcome "$OUTCOME" '{name: $name, outcome: $outcome}' >"result/$PACKAGE.json"
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
+        with:
+          name: result-${{ matrix.package }}
+          path: result
+          retention-days: 7
+
+  propose:
+    needs: [discover, verify]
+    if: ${{ always() && needs.discover.result == 'success' && github.ref == 'refs/heads/main' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: updates
+          path: updates
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: needs.verify.result != 'skipped'
+        with:
+          pattern: result-*
+          path: results
+          merge-multiple: true
+
+      - name: Open, refresh or merge the PRs
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash .github/propose-updates.sh updates results

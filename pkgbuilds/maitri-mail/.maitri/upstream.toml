@@ -1,0 +1,4 @@
+auto_merge = true
+
+[vars]
+_tag = "v{pkgver}"

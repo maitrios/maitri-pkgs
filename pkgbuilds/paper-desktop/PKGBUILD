@@ -1,0 +1,109 @@
+# Maintainer: Kindness <c@k7.dev>
+
+# maitri tracks Paper's own Debian repository, which ToDesktop builds and
+# signs. scripts/update-packages rewrites the version, build id and checksums
+# below from that repository's signed package index (.maitri/upstream.toml).
+
+pkgname=paper-desktop
+pkgver=0.5.15
+_build=261001iufvgru00
+pkgrel=1
+pkgdesc="Official Paper desktop app"
+arch=('x86_64' 'aarch64')
+url="https://paper.design"
+license=('custom')
+
+depends=(
+  'alsa-lib'
+  'at-spi2-core'
+  'bash'
+  'cairo'
+  'dbus'
+  'expat'
+  'gcc-libs'
+  'glib2'
+  'glibc'
+  'gtk3'
+  'hicolor-icon-theme'
+  'libcups'
+  'libnotify'
+  'libsecret'
+  'libx11'
+  'libxcb'
+  'libxcomposite'
+  'libxdamage'
+  'libxext'
+  'libxfixes'
+  'libxkbcommon'
+  'libxrandr'
+  'libxss'
+  'libxtst'
+  'mesa'
+  'nspr'
+  'nss'
+  'pango'
+  'systemd-libs'
+  'util-linux-libs'
+  'xdg-utils'
+)
+
+optdepends=(
+  'apparmor: load the bundled user-namespace profile on AppArmor systems'
+  'libappindicator-gtk3: tray icon support'
+)
+
+makedepends=('libarchive')
+conflicts=('paper-desktop-bin')
+options=('!debug' '!strip')
+
+COMPRESSZST=(zstd -c -z -q --ultra -22 --threads=0 -)
+
+_deb_x86_64="paper-desktop-${pkgver}-build-${_build}-amd64.deb"
+_deb_aarch64="paper-desktop-${pkgver}-build-${_build}-arm64.deb"
+_pool="https://download.paper.design/apt"
+source=('paper-desktop-launcher.sh')
+source_x86_64=("${_deb_x86_64}::${_pool}/${_deb_x86_64}")
+source_aarch64=("${_deb_aarch64}::${_pool}/${_deb_aarch64}")
+noextract=("${_deb_x86_64}" "${_deb_aarch64}")
+sha256sums=('7942e08374bf6a7d6359cb0e4d2bd54478a7e15ee06ab09565225dc9692cc833')
+sha256sums_x86_64=('c25eabfbe1e7cc3586f3d6f12291ae41db52a3b12280d29cc9c502e63741b215')
+sha256sums_aarch64=('f833ea9a2cea0d74e26a65aacc9e2cdf0c009c7a009e3c67e61accda7100384d')
+
+package() {
+  cd "${srcdir}"
+
+  local deb_var="_deb_${CARCH}"
+  local deb="${!deb_var}"
+
+  bsdtar -xOf "${deb}" data.tar.xz |
+    bsdtar --no-same-owner -xf - -C "${pkgdir}"
+
+  local app="${pkgdir}/opt/Paper"
+
+  # electron-updater picks its installer from resources/package-type, and the
+  # deb one shells out to dpkg. Without the file it falls back to the AppImage
+  # updater, which stays idle outside an AppImage, so pacman remains the only
+  # thing that updates Paper.
+  rm "${app}/resources/package-type"
+
+  # pacman never runs the deb's postinst, so the /usr/bin entry it would have
+  # linked is a launcher here instead, and the menu entry goes through it
+  # rather than upstream's --no-sandbox fallback.
+  install -Dm755 paper-desktop-launcher.sh "${pkgdir}/usr/bin/paper-desktop"
+  sed -i 's|^Exec=.*|Exec=paper-desktop %U|' \
+    "${pkgdir}/usr/share/applications/paper-desktop.desktop"
+
+  # Setuid sandbox helper for kernels that deny unprivileged user namespaces,
+  # which the postinst would otherwise decide at install time.
+  chmod 4755 "${app}/chrome-sandbox"
+
+  install -Dm644 "${app}/resources/apparmor-profile" \
+    "${pkgdir}/etc/apparmor.d/paper-desktop"
+
+  install -Dm644 "${app}/LICENSE.electron.txt" \
+    "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE.electron.txt"
+  install -Dm644 "${app}/LICENSES.chromium.html" \
+    "${pkgdir}/usr/share/licenses/${pkgname}/LICENSES.chromium.html"
+
+  rm -rf "${pkgdir}/usr/share/doc"
+}

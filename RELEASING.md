@@ -33,5 +33,7 @@ Automatic: every push to maitri `main` rebuilds `maitri-dev` and `maitri-setting
 ## Secrets and settings
 
 - `MAITRI_GPG_PRIVATE_KEY` (secret): the maitri signing key, imported only in publish jobs.
+- **Settings → Actions → General → Allow GitHub Actions to create and approve pull requests** has to
+  be on, since `update-packages.yml` opens its PRs with `GITHUB_TOKEN`.
 - In maitrios/maitri: `MAITRI_PKGS_DISPATCH_TOKEN` (secret), a fine-grained PAT with
   `contents: write` on this repo, used by `notify-pkgs.yml`.

@@ -1,0 +1,8 @@
+auto_merge = true
+
+[apt]
+repo = "https://persistent.oaistatic.com/codex-app-prod/linux/deb"
+suite = "stable"
+package = "chatgpt"
+key = "openai.asc"
+filename = "chatgpt_{pkgver}_{arch}.deb"

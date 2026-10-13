@@ -1,0 +1,4 @@
+auto_merge = true
+
+[script]
+run = "update-pkgver.sh"

@@ -1,0 +1,8 @@
+auto_merge = true
+
+[apt]
+repo = "https://downloads.claude.ai/claude-desktop/apt/stable"
+suite = "stable"
+package = "claude-desktop"
+key = "anthropic.asc"
+filename = "claude-desktop_{pkgver}_{arch}.deb"
