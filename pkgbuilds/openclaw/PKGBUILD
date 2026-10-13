@@ -3,7 +3,7 @@
 # Contributor: Evert Vorster <evorster@gmail.com>
 # Contributor: Emir-Eins <emir-eins@outlook.com>
 # Contributor: Wuxxin <wuxxin@gmail.com>
-# Followed here straight from the npm registry (see .omarchy/package.json), since
+# Followed here straight from the npm registry (see .nvchecker.toml), since
 # upstream's release cadence outruns the AUR.
 
 pkgname=openclaw

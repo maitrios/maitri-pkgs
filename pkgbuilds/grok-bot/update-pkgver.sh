@@ -18,6 +18,13 @@ commit="$(sed -nE 's@.*/(grokbot|sand)/stable/([0-9a-f]{40})/.*@\2@p' <<<"${feed
   exit 1
 }
 
+current_ver="$(sed -nE 's/^pkgver=([^[:space:]#]+).*/\1/p' "${PKGBUILD_PATH}" | head -n1)"
+current_commit="$(sed -nE 's/^_commit=([^[:space:]#]+).*/\1/p' "${PKGBUILD_PATH}" | head -n1)"
+if [[ "${ver}" == "${current_ver}" && "${commit}" == "${current_commit}" ]]; then
+  echo "${ver} ${commit} (already pinned)"
+  exit 0
+fi
+
 tmp="$(mktemp)"
 trap 'rm -f "${tmp}"' EXIT
 
@@ -35,8 +42,6 @@ deb_sum() {
 
 sum_x86_64="$(deb_sum x64 amd64)"
 sum_aarch64="$(deb_sum arm64 arm64)"
-
-current_ver="$(sed -nE 's/^pkgver=([^[:space:]#]+).*/\1/p' "${PKGBUILD_PATH}" | head -n1)"
 
 sed -i -E \
   -e "s/^_commit=.*/_commit=${commit}/" \

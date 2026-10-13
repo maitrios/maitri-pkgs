@@ -1,8 +1,8 @@
 # Maintainer: Spencer Bull <spencer@omarchy.org>
 
 # maitri tracks Perplexity's own Debian repository, the feed the app updates
-# itself from. .maitri/upstream.sh rewrites the version and checksums below
-# from that repository's package index.
+# itself from. scripts/update-packages rewrites the version and checksums below
+# from that repository's signed package index (.maitri/upstream.toml).
 
 pkgname=perplexity
 pkgver=26.10.1+build108257

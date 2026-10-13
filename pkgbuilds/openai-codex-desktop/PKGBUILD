@@ -2,8 +2,9 @@
 # Recipe adapted from omarchy-pkgs.
 
 # maitri tracks OpenAI's own Debian repository rather than the AUR, which lags
-# behind releases that ship several times a week. .maitri/upstream.sh rewrites
-# the version and checksums below from that repository's package index.
+# behind releases that ship several times a week. scripts/update-packages
+# rewrites the version and checksums below from that repository's signed
+# package index (.maitri/upstream.toml).
 
 pkgname=openai-codex-desktop
 pkgver=26.1007.21434

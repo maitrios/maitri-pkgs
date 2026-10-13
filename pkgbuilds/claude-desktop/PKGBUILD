@@ -1,9 +1,9 @@
 # Maintainer: Spencer Bull <spencerbull2554@gmail.com>
 
 # maitri tracks Anthropic's own Debian repository, the only channel the
-# Linux beta ships through. The declarative "debian" upstream provider in
-# .omarchy/package.json rewrites the version and checksums below from that
-# repository's package index.
+# Linux beta ships through. scripts/update-packages rewrites the version and
+# checksums below from that repository's signed package index
+# (.maitri/upstream.toml).
 
 pkgname=claude-desktop
 pkgver=2.31226.1

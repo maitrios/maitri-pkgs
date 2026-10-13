@@ -234,9 +234,10 @@ strip_release = true
 source = "aur"
 strip_release = true
 
+# The recipe builds from the npm tarball, and the AUR trails npm by weeks.
 [openclaw]
-source = "aur"
-strip_release = true
+source = "npm"
+npm = "openclaw"
 
 [qmk-hid]
 source = "aur"
@@ -332,6 +333,8 @@ include_regex = "^v?[0-9]+\\.[0-9]+\\.[0-9]+$"
 
 # --- Vendor apt repositories: the recipes repackage these .debs ------------
 # The AUR lags these feeds by weeks, so track the stable suite directly.
+# scripts/update-packages does not use these entries: it reads each feed's
+# signed index itself (pkgbuilds/<name>/.maitri/upstream.toml).
 [claude-desktop]
 source = "apt"
 mirror = "https://downloads.claude.ai/claude-desktop/apt/stable"
@@ -343,6 +346,13 @@ source = "apt"
 mirror = "https://persistent.oaistatic.com/codex-app-prod/linux/deb"
 suite = "stable"
 pkg = "chatgpt"
+
+[paper-desktop]
+source = "apt"
+mirror = "https://download.paper.design/apt"
+suite = "stable"
+pkg = "paper"
+strip_release = true
 
 # --- Vendor update feeds ------------------------------------------------------
 # Apply a grok-bot bump with pkgbuilds/grok-bot/update-pkgver.sh, which pins the
@@ -358,7 +368,8 @@ regex = '"version":"([0-9.]+)"'
 # the AUR package is seven years behind the fonts we ship),
 # dell-xps13-sidecar-amps, hermes-desktop (omarchy-pkgs date pin),
 # perplexity (https://packages.perplexity.ai/deb/dists/stable/main/binary-amd64/Packages carries the
-# version without the +buildNNNN suffix the .deb filename needs, so nvcmp cannot compare it).
+# version without the +buildNNNN suffix the .deb filename needs, so nvcmp cannot compare it;
+# scripts/update-packages reads the suffix from the index's Filename instead).
 #
 # Also untracked on purpose: maitri-settings and maitri-settings-dev move in lockstep with their
 # pair under scripts/bump-maitri, and the -git recipes (libretro-*, retroarch-joypad-autoconfig-git)
