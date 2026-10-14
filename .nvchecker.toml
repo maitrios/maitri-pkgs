@@ -214,6 +214,9 @@ strip_release = true
 source = "aur"
 strip_release = true
 
+# Apply a cursor-bin bump with pkgbuilds/cursor-bin/update-pkgver.sh, which pins
+# the per-release commit the deb path carries alongside the version. The AUR
+# entry stays here so scripts/check-updates still reports when we fall behind.
 [cursor-bin]
 source = "aur"
 strip_release = true
