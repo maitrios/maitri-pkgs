@@ -1,0 +1,2 @@
+[script]
+run = "update-pkgver.sh"
