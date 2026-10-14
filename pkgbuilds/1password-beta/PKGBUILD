@@ -1,6 +1,11 @@
 pkgname=1password-beta
 
-_tarver=8.12.42-32.BETA
+# pkgver is the version the automatic update moves. The tarballs spell the
+# same version with a dash before the build number, which pacman does not
+# allow in a pkgver, so _tarver derives it back.
+pkgver=8.12.42_32.BETA
+pkgrel=1
+_tarver=${pkgver//_/-}
 case "${CARCH}" in
     x86_64)
         _archdir="x64"
@@ -9,8 +14,6 @@ case "${CARCH}" in
         _archdir="arm64"
         ;;
 esac
-pkgver=${_tarver//-/_}
-pkgrel=1
 conflicts=('1password' '1password-beta-bin')
 pkgdesc="Password manager and secure wallet"
 arch=('x86_64' 'aarch64')
