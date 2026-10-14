@@ -2,7 +2,7 @@
 # Recipe adapted from omarchy-pkgs.
 
 pkgname=herdr
-pkgver=0.9.4
+pkgver=0.9.5
 pkgrel=1
 pkgdesc="Herdr terminal workspace manager for AI coding agents"
 arch=('x86_64' 'aarch64')
@@ -18,7 +18,7 @@ _zigver=0.16.0
 source=("herdr-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
 source_x86_64=("zig-x86_64-linux-$_zigver.tar.xz::https://ziglang.org/download/$_zigver/zig-x86_64-linux-$_zigver.tar.xz")
 source_aarch64=("zig-aarch64-linux-$_zigver.tar.xz::https://ziglang.org/download/$_zigver/zig-aarch64-linux-$_zigver.tar.xz")
-sha256sums=('ef44377e496ef674e72ce4084bb9cc5f0f52601a5688fa1708b4414fc88cb0b7')
+sha256sums=('a2486b09a8153630f6a19e72606ba1c961a6194bce13c09cba67ccce5e4252de')
 sha256sums_x86_64=('70e49664a74374b48b51e6f3fdfbf437f6395d42509050588bd49abe52ba3d00')
 sha256sums_aarch64=('ea4b09bfb22ec6f6c6ceac57ab63efb6b46e17ab08d21f69f3a48b38e1534f17')
 
