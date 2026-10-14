@@ -3,7 +3,7 @@ pkgname=1password-beta
 # pkgver is the version the automatic update moves. The tarballs spell the
 # same version with a dash before the build number, which pacman does not
 # allow in a pkgver, so _tarver derives it back.
-pkgver=8.12.42_32.BETA
+pkgver=8.12.42_34.BETA
 pkgrel=1
 _tarver=${pkgver//_/-}
 case "${CARCH}" in
@@ -25,10 +25,10 @@ source=()
 sha256sums=()
 source_x86_64=(https://downloads.1password.com/linux/tar/beta/x86_64/1password-${_tarver}.x64.tar.gz{,.sig})
 source_aarch64=(https://downloads.1password.com/linux/tar/beta/aarch64/1password-${_tarver}.arm64.tar.gz{,.sig})
-sha256sums_x86_64=('55fe8dbc80e65337e657c926948dff356b09c3d0860f3b381f1df5af2b99741a'
-                   '62494cae0f90d553cade1eeda82cec4d5b26e4719f2233085ce47a70cc80da63')
-sha256sums_aarch64=('53a63a857e9219da410839915216c4f9cc017cb17bbff9095caf01365e28c5d8'
-                    'd910aedf72c4ff31745b0bbfc12d03c03b177df85f73a381a35227439320ad5c')
+sha256sums_x86_64=('be6e23d67172a00559b39111e73ea051970677c9daacfea9027b748308eaf271'
+                   '91bba1a4a01541c992562f5f0c26daeccc89ecb7961cf39a12bad0ca26581c4e')
+sha256sums_aarch64=('8e7e0042d78a7d51089998d110dd40be796b0c25b875cb28dca837ba3a17ea4f'
+                    'c6b7b1ca7e2b2fb60a61b647d81b9df37e375a520bb8cb67cdbdbc388eb80850')
 validpgpkeys=('3FEF9748469ADBE15DA7CA80AC2D62742012EA22')
 
 package() {
