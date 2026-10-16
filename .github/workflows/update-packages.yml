@@ -145,7 +145,7 @@ jobs:
 
   propose:
     needs: [discover, verify]
-    if: ${{ always() && needs.discover.result == 'success' && (github.ref == 'refs/heads/main' || (github.ref == 'refs/heads/beyer/71' && inputs.packages == 'heroic-games-launcher-bin')) }}
+    if: ${{ always() && needs.discover.result == 'success' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
