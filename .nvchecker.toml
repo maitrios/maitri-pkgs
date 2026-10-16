@@ -296,7 +296,9 @@ prefix = "v"
 [mise-bin]
 source = "github"
 github = "jdx/mise"
-use_max_tag = true
+# Not use_max_tag: jdx/mise tags a version before its release assets exist,
+# and the updater cannot download a tarball that is not published yet.
+use_latest_release = true
 prefix = "v"
 
 [maitri-fish]

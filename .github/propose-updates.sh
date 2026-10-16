@@ -65,6 +65,11 @@ merged=0
 problems=0
 rows=()
 
+problem() {
+  echo "::error::$1"
+  problems=1
+}
+
 while IFS= read -r entry; do
   name=$(jq -r .name <<<"$entry")
   title=$(jq -r .title <<<"$entry")
@@ -83,7 +88,7 @@ while IFS= read -r entry; do
   git switch -q -C "$branch" "origin/$base"
   if ! git apply --3way "$updates/patches/$name.patch"; then
     rows+=("| \`$name\` | $change | patch no longer applies to $base | ${pr:+#$pr} |")
-    problems=1
+    problem "$name: patch no longer applies to $base"
     continue
   fi
   git add -- "pkgbuilds/$name"
@@ -100,7 +105,7 @@ while IFS= read -r entry; do
 
   if [[ $outcome != success ]]; then
     state="build $outcome"
-    problems=1
+    problem "$name: build $outcome"
   elif [[ $auto != true ]]; then
     state="waiting for review"
   elif merge_pr "$pr"; then
@@ -108,7 +113,7 @@ while IFS= read -r entry; do
     merged=$((merged + 1))
   else
     state="merge failed"
-    problems=1
+    problem "$name: merging #$pr failed"
   fi
   rows+=("| \`$name\` | $change | $state | #$pr |")
 done < <(jq -c '.[] | select(.status == "updated")' "$report")
@@ -127,7 +132,9 @@ if ((merged)); then
 fi
 
 failed=$(jq -r '.[] | select(.status == "failed") | "### `\(.name)` (\(.method))\n\n```\n\(.error)\n```\n"' "$report")
-[[ -z $failed ]] || problems=1
+while IFS= read -r line; do
+  problem "$line"
+done < <(jq -r '.[] | select(.status == "failed") | "\(.name) could not update: \(.error)" | gsub("%"; "%25") | gsub("\r"; "%0D") | gsub("\n"; "%0A")' "$report")
 
 {
   echo "## Package updates"
