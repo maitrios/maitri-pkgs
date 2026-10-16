@@ -76,8 +76,11 @@ Run workflow** with an optional `packages` list:
 3. **propose** opens or refreshes one PR per package on `auto/<name>`. With `auto_merge = true`
    (vendor apt feeds, grok-bot and maitri's own projects) it squash-merges once the build passes and
    starts `build-pkgs.yml`, because a merge made with `GITHUB_TOKEN` doesn't trigger it. The rest
-   wait for review. PRs whose package is current again are closed. A run that couldn't update
-   something ends red, with the reasons in its summary.
+   are assigned to beyera with a review request, and `merge-approved-updates.yml` squash-merges
+   one and starts `build-pkgs.yml` as soon as he approves it, if it's still mergeable and green.
+   Each PR's head carries an `update-packages / build` status with the verify result. PRs whose
+   package is current again are closed. A run that couldn't update something ends red, with the
+   reasons in its summary.
 
 `scripts/update-packages --dry-run [NAME...]` shows what a run would change, without keeping it.
 

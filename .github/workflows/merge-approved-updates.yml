@@ -1,0 +1,50 @@
+name: Merge approved updates
+
+# Squash-merges an auto/<name> PR from update-packages.yml as soon as beyera
+# approves it, provided it is still mergeable and green, then starts
+# build-pkgs.yml (see .github/merge-approved-update.sh). Nobody else's
+# approval merges anything. Nothing from the PR is checked out or run.
+
+on:
+  pull_request_review:
+    types: [submitted]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: merge-approved-updates-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  merge:
+    if: >-
+      github.event.review.state == 'approved' &&
+      github.event.review.user.login == 'beyera' &&
+      startsWith(github.event.pull_request.head.ref, 'auto/') &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+      checks: read
+      statuses: read
+    steps:
+      # The script comes from main, not from the PR being merged.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+          persist-credentials: false
+          sparse-checkout: .github/merge-approved-update.sh
+          sparse-checkout-cone-mode: false
+
+      - name: Merge and build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          REVIEWER: beyera
+          SELF: ${{ github.workflow }}
+        run: bash .github/merge-approved-update.sh "$PR"
