@@ -8,8 +8,8 @@
 # app updates itself from.
 
 pkgname=t3code-bin
-pkgver=0.0.45
-pkgrel=2
+pkgver=0.1.0
+pkgrel=1
 pkgdesc="Open-source control plane for coding agents"
 arch=('x86_64' 'aarch64')
 url="https://t3.codes"
@@ -65,8 +65,8 @@ noextract=("${_appimage_x86_64}" "${_appimage_aarch64}")
 sha256sums=('cb905ff341372ef2ef6e402cf485959f8bd1df8f0efebee4cda1afdd5e6abc0a'
             'c5b3f2a9f0b14b12cfd973b79319f0f018b7ae49a1d43d8ca346100c3f7de28f'
             '935d8f2af0c703f9c39517ee57cc4930b19d02d533be930b63f0e82f93614b43')
-sha256sums_x86_64=('ab7b0a86d1ea657ccc162b60b772c61f70bc7c8b9e259b46939d53bb38faa02a')
-sha256sums_aarch64=('03113566f52b07a4d503239c378540175691d9a057ed41e0e794897d6be054d5')
+sha256sums_x86_64=('e38d9c5fb513b1ece0a708b906d3383b5b47ed199575b39a31e41ab8834eb744')
+sha256sums_aarch64=('6193e26d72abfd16174a3b0c5eb25f75152c383233ed520253054cebf97967dd')
 
 prepare() {
   local _appimage
