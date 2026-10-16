@@ -1,7 +1,8 @@
 #!/bin/bash
 # Turn update-packages.yml's findings into one PR per package on auto/<name>,
-# merge the ones whose recipe allows it once their build passed, close PRs
-# whose package is current on main again, and start build-pkgs.yml for
+# merge the ones whose recipe allows it once their build passed, hand the rest
+# to the reviewer (merge-approved-updates.yml merges them on approval), close
+# PRs whose package is current on main again, and start build-pkgs.yml for
 # whatever merged.
 #
 #   propose-updates.sh <updates dir> <results dir>
@@ -16,6 +17,8 @@ updates=${1:?usage: propose-updates.sh <updates dir> <results dir>}
 results=${2:?usage: propose-updates.sh <updates dir> <results dir>}
 report=$updates/report.json
 base=main
+reviewer=beyera
+build_context="update-packages / build"
 run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
 summary=${GITHUB_STEP_SUMMARY:-/dev/stdout}
 
@@ -23,10 +26,26 @@ git config user.name 'github-actions[bot]'
 git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
 git fetch -q --no-tags origin "+refs/heads/$base:refs/remotes/origin/$base"
 
-open_prs=$(gh pr list --base "$base" --state open --limit 200 --json number,headRefName \
-  --jq '.[] | select(.headRefName | startswith("auto/")) | "\(.headRefName | ltrimstr("auto/"))\t\(.number)"')
+open_prs=$(gh pr list --base "$base" --state open --limit 200 --json number,headRefName,assignees \
+  --jq '.[] | select(.headRefName | startswith("auto/")) | "\(.headRefName | ltrimstr("auto/"))\t\(.number)\t\([.assignees[].login] | join(","))"')
 
 pr_for() { awk -F'\t' -v name="$1" '$1 == name { print $2 }' <<<"$open_prs"; }
+assignees_for() { awk -F'\t' -v name="$1" '$1 == name { print $3 }' <<<"$open_prs"; }
+
+hand_to_reviewer() {
+  gh pr edit "$1" --add-reviewer "$reviewer" --add-assignee "$reviewer" >/dev/null
+}
+
+set_build_status() {
+  local sha=$1 outcome=$2 state description
+  case $outcome in
+    success) state=success description="Package built in a clean container" ;;
+    failure) state=failure description="Package build failed" ;;
+    *) state=error description="Package build did not run ($outcome)" ;;
+  esac
+  gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$sha" -f state="$state" \
+    -f context="$build_context" -f target_url="$run_url" -f description="$description" >/dev/null
+}
 
 pr_body() {
   local entry=$1 outcome=$2 auto=$3 build merge
@@ -38,7 +57,7 @@ pr_body() {
   if [[ $auto == true ]]; then
     merge="merges itself once the build check passes"
   else
-    merge="waits for a review"
+    merge="waits for @$reviewer's approval, then merges itself"
   fi
   jq -r --arg run "$run_url" --arg build "$build" --arg merge "$merge" '
     "Automatic update from [update-packages](\($run)).\n\n" +
@@ -77,6 +96,11 @@ while IFS= read -r entry; do
   pr=$(pr_for "$name")
 
   if grep -qxF "$name" "$updates/unchanged.txt"; then
+    # Covers PRs opened before review requests were added, without
+    # re-requesting a review every run once the reviewer has it.
+    if [[ -n $pr && $(jq -r .auto_merge <<<"$entry") != true && ,$(assignees_for "$name"), != *,$reviewer,* ]]; then
+      hand_to_reviewer "$pr" || problem "$name: could not hand #$pr to $reviewer"
+    fi
     rows+=("| \`$name\` | $change | open, unchanged since the last run | ${pr:+#$pr} |")
     continue
   fi
@@ -94,6 +118,7 @@ while IFS= read -r entry; do
   git add -- "pkgbuilds/$name"
   git commit -q -m "$title"
   git push -q -f origin "$branch"
+  set_build_status "$(git rev-parse HEAD)" "$outcome" || problem "$name: could not set the build status"
 
   body=$(pr_body "$entry" "$outcome" "$auto")
   if [[ -n $pr ]]; then
@@ -102,12 +127,15 @@ while IFS= read -r entry; do
     url=$(gh pr create --base "$base" --head "$branch" --title "$title" --body "$body")
     pr=${url##*/}
   fi
+  if [[ $auto != true ]]; then
+    hand_to_reviewer "$pr" || problem "$name: could not hand #$pr to $reviewer"
+  fi
 
   if [[ $outcome != success ]]; then
     state="build $outcome"
     problem "$name: build $outcome"
   elif [[ $auto != true ]]; then
-    state="waiting for review"
+    state="waiting for @$reviewer"
   elif merge_pr "$pr"; then
     state="merged"
     merged=$((merged + 1))

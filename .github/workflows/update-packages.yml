@@ -4,8 +4,10 @@ name: Update packages
 # in a fresh container, then opens or refreshes one PR per package on
 # auto/<name>. Recipes whose .maitri/upstream.toml sets auto_merge merge as
 # soon as their build passes, and build-pkgs.yml is started for them, since a
-# merge made with GITHUB_TOKEN does not trigger it. Discovery and the build
-# run with a read-only token; only the last job can write.
+# merge made with GITHUB_TOKEN does not trigger it. The rest are assigned to
+# beyera for review, and merge-approved-updates.yml merges them when he
+# approves. Discovery and the build run with a read-only token; only the last
+# job can write.
 
 on:
   schedule:
@@ -149,6 +151,7 @@ jobs:
       contents: write
       pull-requests: write
       actions: write
+      statuses: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
