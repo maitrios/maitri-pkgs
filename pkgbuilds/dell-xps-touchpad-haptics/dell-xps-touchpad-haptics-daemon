@@ -25,7 +25,7 @@ DEBUG = os.environ.get("DELL_XPS_TOUCHPAD_HAPTICS_DEBUG", "").lower() not in (
 USER_HOME = Path(
     os.environ.get("DELL_XPS_TOUCHPAD_HAPTICS_HOME", str(Path.home()))
 )
-CONFIG_PATH = USER_HOME / ".config/omarchy/dell-haptic.conf"
+CONFIG_PATH = USER_HOME / ".config/maitri/dell-haptic.conf"
 
 EVENT_FORMAT = "llHHi"
 EVENT_SIZE = struct.calcsize(EVENT_FORMAT)

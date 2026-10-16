@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-CONFIG_PATH="$HOME/.config/omarchy/dell-haptic.conf"
+CONFIG_PATH="$HOME/.config/maitri/dell-haptic.conf"
 DEFAULT_INTENSITY=100
 LOW_INTENSITY=10
 MID_INTENSITY=50
