@@ -41,6 +41,8 @@ SAFE_VALUE = re.compile(r"[A-Za-z0-9._+]+")
 SHA256 = re.compile(r"[0-9a-f]{64}")
 IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
+CHECKSUMS = re.compile(r"^[ \t]*(?:ck|md5|sha1|sha224|sha256|sha384|sha512|b2)sums(?:_[^=]+)?\+?=\(")
+COMMENT = re.compile(r"(?<!\S)#")
 
 
 class UpdateError(Exception):
@@ -146,6 +148,25 @@ def assign(text: str, name: str, value: str) -> str:
     if len(pattern.findall(text)) != 1:
         raise UpdateError(f"PKGBUILD must assign {name} exactly once, at the top level")
     return pattern.sub(lambda _: f"{name}={value}", text)
+
+
+# updpkgsums replaces each sums array up to the first line that ends in ")",
+# comment or not, so a comment like "# tarball (signed)" inside the array ends
+# the match early and leaves the rest of the old array behind as broken bash.
+# It drops the comments anyway, so strip them first.
+def strip_checksum_comments(text: str) -> str:
+    lines = []
+    inside = False
+    for line in text.splitlines(keepends=True):
+        if not inside and CHECKSUMS.match(line):
+            inside = True
+        if inside:
+            if comment := COMMENT.search(line):
+                line = line[: comment.start()].rstrip() + "\n"
+            if ")" in line:
+                inside = False
+        lines.append(line)
+    return "".join(lines)
 
 
 def assign_array(text: str, name: str, values: list[str]) -> str:
@@ -476,6 +497,7 @@ def update_nvchecker(recipe: Recipe, context: Context) -> list[str]:
         )
 
     if not context.dry_run:
+        recipe.pkgbuild.write_text(strip_checksum_comments(recipe.pkgbuild.read_text()))
         with tempfile.TemporaryDirectory() as srcdest:
             result = subprocess.run(
                 ["updpkgsums"], cwd=recipe.path, env={**os.environ, "SRCDEST": srcdest},
@@ -483,6 +505,10 @@ def update_nvchecker(recipe: Recipe, context: Context) -> list[str]:
             )
         if result.returncode:
             raise UpdateError(f"updpkgsums failed:\n{tail(result.stdout + result.stderr)}")
+        try:
+            read_vars(recipe.path, ["pkgver"])
+        except UpdateError:
+            raise UpdateError("PKGBUILD no longer sources after updpkgsums rewrote its checksums") from None
 
     return [f"{upstream_link(recipe.name, context.nvchecker_config[recipe.name])} reports {found}",
             "Checksums come from downloading the new sources; nothing upstream signs them",
