@@ -2,7 +2,7 @@
 
 pkgname=symfony-cli
 pkgrel=1
-pkgver=5.22.1
+pkgver=5.22.2
 pkgdesc="The Symfony client helps developers create and manage Symfony applications."
 url="https://symfony.com/"
 arch=('x86_64' 'aarch64')
@@ -12,7 +12,7 @@ makedepends=('go')
 provides=('symfony-cli')
 conflicts=('symfony-cli')
 source=("$pkgname-$pkgver.tar.gz::https://github.com/symfony-cli/symfony-cli/releases/download/v${pkgver}/symfony-cli-${pkgver}.tar.gz")
-sha256sums=('cbec65fba1961783f5e946543f8757a00fad198cdbb8ea2d06e22b8710bc55ef')
+sha256sums=('b8debf8ad3f58f9fd3518dc3eba65228da032c41f17bcaf1dacec2151f6e1c33')
 noextract=("$pkgname-$pkgver.tar.gz")
 
 prepare() {
