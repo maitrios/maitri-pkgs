@@ -1,0 +1,9 @@
+[Trigger]
+Operation = Upgrade
+Type = Path
+Target = usr/bin/bat
+
+[Action]
+Description = Rebuilding bat's theme cache for users who have one...
+When = PostTransaction
+Exec = /usr/share/libalpm/scripts/maitri-bat-cache

@@ -8,7 +8,7 @@
 #  - epoch is a manual escape hatch decided by a human; tooling never sets it.
 #  - _commit is the single source of truth for what gets built. _tag is
 #    provenance only (empty when cut from a bare commit). maitri and
-#    maitri-settings must always carry identical _tag/_commit/pkgver/sha256sums.
+#    maitri-settings must always carry identical _tag/_commit/pkgver/pkgrel.
 pkgname='maitri-settings'
 _tag='v0.6.0'
 _commit='b1e49157118438c1e4a1af60cb0171dc1f5a59c9'

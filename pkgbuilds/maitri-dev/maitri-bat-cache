@@ -1,0 +1,26 @@
+#!/bin/bash
+
+set -uo pipefail
+
+# Release pins before maitri-update-bat-cache existed have nothing to run.
+command -v maitri-update-bat-cache >/dev/null || exit 0
+
+uid_min=$(awk '$1 == "UID_MIN" { print $2 }' /etc/login.defs 2>/dev/null)
+uid_max=$(awk '$1 == "UID_MAX" { print $2 }' /etc/login.defs 2>/dev/null)
+uid_min=${uid_min:-1000}
+uid_max=${uid_max:-60000}
+
+# Only the default cache location is checked: XDG_CACHE_HOME or BAT_CACHE_PATH
+# set in a user's session aren't visible from a pacman hook.
+while IFS=: read -r user _ uid _ _ home _; do
+  [[ $uid =~ ^[0-9]+$ ]] || continue
+  (( uid >= uid_min && uid <= uid_max )) || continue
+  [[ -n $home && -f $home/.cache/bat/metadata.yaml ]] || continue
+
+  runuser -u "$user" -- env -i HOME="$home" USER="$user" LOGNAME="$user" \
+    PATH=/usr/local/sbin:/usr/local/bin:/usr/bin \
+    maitri-update-bat-cache ||
+    echo "maitri-bat-cache: rebuilding bat's cache for $user failed; maitri update retries it" >&2
+done < <(getent passwd)
+
+exit 0
