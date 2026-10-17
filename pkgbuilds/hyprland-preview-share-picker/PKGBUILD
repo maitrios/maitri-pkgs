@@ -1,8 +1,8 @@
 # Maintainer: wysbd <aur@wysbd.dev>
 
 pkgname="hyprland-preview-share-picker"
-pkgver=0.2.1
-pkgrel=2
+pkgver=0.3.0
+pkgrel=1
 pkgdesc="An alternative share picker for hyprland with window and monitor previews"
 arch=(x86_64 aarch64)
 url="https://github.com/WhySoBad/hyprland-preview-share-picker"
@@ -15,8 +15,8 @@ optdepends=(
 _protocols_commit=3a5c2bda1c1a4e55cc1330c782547695a93f05b2
 source=("$pkgname-$pkgver.tar.gz::https://github.com/WhySoBad/hyprland-preview-share-picker/archive/refs/tags/v$pkgver.tar.gz"
         "hyprland-protocols-$_protocols_commit.tar.gz::https://github.com/hyprwm/hyprland-protocols/archive/$_protocols_commit.tar.gz")
-sha256sums=('dfbd6773884c24bb300d756420cc540dda0c3518e910e20d1538e7dd6c0990da'
-            'SKIP')
+sha256sums=('8739d909ae565aeffe45f28ba4a460730a1bdf8c8d35dd1278b5a3fefb16f4e8'
+            '00b2f15b8f383da4b6d111333c184a599ed5a9f51111243d0a88ddf7d7e498fb')
 
 prepare() {
     cd "$pkgname-$pkgver"
