@@ -56,7 +56,7 @@ return {
 								local colorscheme = spec.opts.colorscheme
 
 								-- Load the colorscheme plugin. If it's already loaded (old and new
-								-- theme sharing the same plugin, e.g. generic themes on aether.nvim),
+								-- theme sharing the same plugin, e.g. every maitri theme on maitri-theme),
 								-- lazy won't rerun setup() on a spec reload and keeps the old
 								-- resolved opts in the plugin's property cache, so fully reload it
 								-- to reapply setup() with the new theme's opts.

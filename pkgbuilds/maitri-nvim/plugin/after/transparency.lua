@@ -10,9 +10,6 @@ end
 local groups = {
 	-- transparent background
 	"Normal",
-	"NormalFloat",
-	"FloatBorder",
-	"Pmenu",
 	"Terminal",
 	"EndOfBuffer",
 	"FoldColumn",
