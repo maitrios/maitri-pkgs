@@ -335,7 +335,14 @@ EOF
   # have working defaults for `maitri screensaver` and the About screen
   # from the moment they're created. maitri-reinstall-configs refreshes
   # these from the /usr/share/maitri/ sources for existing users.
-  install -Dm644 logo.txt "$pkgdir/etc/skel/.config/maitri/branding/screensaver.txt"
+  # Older release pins show screensaver.txt as a single frame.
+  if [[ -f assets/brand/wordmark.svg ]]; then
+    install -d "$pkgdir/etc/skel/.config/maitri/branding"
+    { cat icon.txt; printf '\f\n'; cat logo.txt; } >"$pkgdir/etc/skel/.config/maitri/branding/screensaver.txt"
+    chmod 644 "$pkgdir/etc/skel/.config/maitri/branding/screensaver.txt"
+  else
+    install -Dm644 logo.txt "$pkgdir/etc/skel/.config/maitri/branding/screensaver.txt"
+  fi
   install -Dm644 icon.txt "$pkgdir/etc/skel/.config/maitri/branding/about.txt"
 
   # Other static per-user defaults seeded via /etc/skel for new users.
