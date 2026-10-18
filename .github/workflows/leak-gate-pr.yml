@@ -3,7 +3,8 @@ name: Leak gate PR
 # Starts leak-gate.yml for each PR event. That one checks the PR from main's
 # copy with the LEAK_PATTERN secret; this run gets no secrets. It does run the
 # PR's own copy of .github/leak-gate-test.sh, which tries the PR's
-# .github/leak-gate.sh on a scratch repo with a dummy pattern.
+# .github/leak-gate.sh and .github/leak-gate-ci.sh on a scratch repo with a
+# dummy pattern.
 
 run-name: "Leak gate PR #${{ github.event.pull_request.number }}"
 
@@ -33,6 +34,7 @@ jobs:
           git fetch -q --no-tags --depth=1 origin "$GITHUB_SHA"
           mkdir "$RUNNER_TEMP/gate"
           git show "$GITHUB_SHA:.github/leak-gate.sh" >"$RUNNER_TEMP/gate/leak-gate.sh"
+          git show "$GITHUB_SHA:.github/leak-gate-ci.sh" >"$RUNNER_TEMP/gate/leak-gate-ci.sh"
           git show "$GITHUB_SHA:.github/leak-gate-test.sh" >"$RUNNER_TEMP/gate/leak-gate-test.sh"
-          chmod +x "$RUNNER_TEMP/gate/leak-gate.sh"
+          chmod +x "$RUNNER_TEMP/gate/leak-gate.sh" "$RUNNER_TEMP/gate/leak-gate-ci.sh"
           bash "$RUNNER_TEMP/gate/leak-gate-test.sh"

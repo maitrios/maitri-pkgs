@@ -2,10 +2,11 @@ name: Leak gate
 
 # Checks each PR, and each push to main, for the forbidden names and posts the
 # result as the leak-gate commit status. The LEAK_PATTERN secret lives in the
-# leak-gate environment, which only main can use, and this file and
-# .github/leak-gate.sh always come from main: a PR's commits, diff, title, body
-# and branch are fetched and read as data, never checked out or run. Leak gate
-# PR (leak-gate-pr.yml) starts it for PRs, forks and Dependabot included.
+# leak-gate environment, which only main can use, and this file,
+# .github/leak-gate.sh and .github/leak-gate-ci.sh always come from main: a PR's
+# commits, diff, title, body and branch are fetched and read as data, never
+# checked out or run. Leak gate PR (leak-gate-pr.yml) starts it for PRs, forks
+# and Dependabot included.
 #
 # Here, unlike maitri, leak-gate isn't a required check: the auto/ PRs are
 # package bumps from upstream data, opened with GITHUB_TOKEN so no workflow
@@ -35,7 +36,7 @@ jobs:
   leak-gate:
     if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     environment: leak-gate
     permissions:
       contents: read
@@ -43,9 +44,9 @@ jobs:
       statuses: write
     steps:
       # No checkout and every git command quiet: checkout prints the head
-      # commit's subject, and fetching every ref prints every branch name. The
-      # PR's text comes from the API into variables, never into env, which the
-      # log prints.
+      # commit's subject, and fetching every ref prints every branch name.
+      # .github/leak-gate-ci.sh takes it from here, with the PR's text kept in
+      # variables, never in env, which the log prints.
       - name: Check for the forbidden names
         env:
           GH_TOKEN: ${{ github.token }}
@@ -59,70 +60,7 @@ jobs:
           # git asks for the token when it needs it; it's never written down.
           # shellcheck disable=SC2016
           git config credential.helper '!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f'
-
-          fetch() {
-            git fetch -q --no-tags --filter=blob:none origin "$@"
-          }
-
-          set_status() {
-            gh api -X POST "repos/$GITHUB_REPOSITORY/statuses/$1" -f context=leak-gate -f state="$2" \
-              -f description="$3" -f target_url="$RUN_URL" >/dev/null
-          }
-
-          check() {
-            local base=$1 head=$2 result=0
-            set_status "$head" pending "Checking for the forbidden names"
-            if ! fetch "$base" "$head"; then
-              set_status "$head" error "Couldn't fetch the commits; see the run"
-              return 2
-            fi
-            bash "$RUNNER_TEMP/leak-gate.sh" "$base" "$head" || result=$?
-            case $result in
-              0) set_status "$head" success "No forbidden names" ;;
-              1) set_status "$head" failure "Forbidden names found; the run says where" ;;
-              *) set_status "$head" error "Couldn't check; see the run" ;;
-            esac
-            return "$result"
-          }
-
-          fetch "$GITHUB_SHA"
+          git fetch -q --no-tags --filter=blob:none origin "$GITHUB_SHA"
           git show "$GITHUB_SHA:.github/leak-gate.sh" >"$RUNNER_TEMP/leak-gate.sh"
-
-          if [[ $GITHUB_EVENT_NAME == "push" ]]; then
-            check "$(jq -r .before "$GITHUB_EVENT_PATH")" "$GITHUB_SHA"
-            exit
-          fi
-
-          if [[ $GITHUB_EVENT_NAME == "workflow_dispatch" ]]; then
-            [[ $PR_NUMBER =~ ^[0-9]+$ ]] || { echo "::error::pr has to be a PR number"; exit 2; }
-            prs=("$PR_NUMBER")
-            want=""
-          else
-            want=$(jq -r .workflow_run.head_sha "$GITHUB_EVENT_PATH")
-            owner=$(jq -r .workflow_run.head_repository.owner.login "$GITHUB_EVENT_PATH")
-            branch=$(jq -r .workflow_run.head_branch "$GITHUB_EVENT_PATH")
-            # An error would print the request URL, which carries the branch name.
-            if ! gh api -X GET "repos/$GITHUB_REPOSITORY/pulls" -f state=open -f head="$owner:$branch" \
-              --jq '.[] | "\(.number) \(.head.sha)"' >"$RUNNER_TEMP/prs" 2>/dev/null; then
-              set_status "$want" error "Couldn't look up the PR; see the run"
-              echo "::error::Couldn't look up the PR for ${want:0:12}"
-              exit 2
-            fi
-            mapfile -t prs < <(awk -v want="$want" '$2 == want { print $1 }' "$RUNNER_TEMP/prs")
-            if (( ${#prs[@]} == 0 )); then
-              echo "::notice::No open PR has ${want:0:12} as its head now, so there's nothing to check."
-              exit 0
-            fi
-          fi
-
-          overall=0
-          for pr in "${prs[@]}"; do
-            gh api "repos/$GITHUB_REPOSITORY/pulls/$pr" >"$RUNNER_TEMP/pr.json"
-            PR_TITLE=$(jq -r '.title // ""' "$RUNNER_TEMP/pr.json")
-            PR_BODY=$(jq -r '.body // ""' "$RUNNER_TEMP/pr.json")
-            PR_BRANCH=$(jq -r '.head.ref // ""' "$RUNNER_TEMP/pr.json")
-            export PR_TITLE PR_BODY PR_BRANCH
-            echo "PR #$pr"
-            check "$(jq -r .base.sha "$RUNNER_TEMP/pr.json")" "$(jq -r .head.sha "$RUNNER_TEMP/pr.json")" || overall=$?
-          done
-          exit "$overall"
+          git show "$GITHUB_SHA:.github/leak-gate-ci.sh" >"$RUNNER_TEMP/leak-gate-ci.sh"
+          bash "$RUNNER_TEMP/leak-gate-ci.sh" "$RUNNER_TEMP/leak-gate.sh"
