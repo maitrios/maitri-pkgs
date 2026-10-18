@@ -258,6 +258,55 @@ run_gate nope LEAK_PATTERN=zzleakzz
 expect_status "an unknown base fails" 2
 pass "an unknown base fails"
 
+# Every git call the gate makes, failed one at a time, has to stop it (exit 2)
+# rather than pass. The shim fails call number GIT_SHIM_FAIL.
+real_git=$(command -v git)
+mkdir -p "$work/gitshim"
+cat > "$work/gitshim/git" <<GIT
+#!/bin/bash
+n=\$(( \$(cat "$work/gitshim/count") + 1 ))
+echo "\$n" > "$work/gitshim/count"
+[[ \${GIT_SHIM_FAIL:-0} != "\$n" ]] || exit 128
+exec "$real_git" "\$@"
+GIT
+chmod +x "$work/gitshim/git"
+
+# fail_each_git_call <description> <base>: run the gate once to count its git
+# calls, then once per call with that call failing.
+fail_each_git_call() {
+  local description=$1 from=$2 calls n
+  echo 0 > "$work/gitshim/count"
+  run_gate "$from" LEAK_PATTERN=zzleakzz PATH="$work/gitshim:$PATH"
+  expect_status "$description" 0
+  calls=$(<"$work/gitshim/count")
+  (( calls > 10 )) || fail "$description" "only $calls git calls"
+  for (( n = 1; n <= calls; n++ )); do
+    echo 0 > "$work/gitshim/count"
+    run_gate "$from" LEAK_PATTERN=zzleakzz PATH="$work/gitshim:$PATH" GIT_SHIM_FAIL=$n
+    (( status == 2 )) || fail "$description" "git call $n of $calls failing gave exit $status:"$'\n'"$output"
+    expect_absent "$description" "No forbidden names"
+  done
+  pass "$description ($calls calls)"
+}
+
+start shimmed
+printf 'PNG\0\0fine\0' > image.bin
+echo four >> notes.txt
+save "add an image and a line"
+git mv notes.txt renamed.txt
+save "rename notes"
+fail_each_git_call "any failing git call stops the gate, never passes it" "$base"
+
+git checkout -q -B shim-a "$base"
+sed -i 's/^one$/one-a/' notes.txt
+save "a side"
+git checkout -q -B shim-b "$base"
+sed -i 's/^three$/three-b/' notes.txt
+printf 'PNG\0b\0' > b.bin
+save "b side"
+git merge -q --no-edit shim-a >/dev/null
+fail_each_git_call "any failing git call in a merge stops the gate too" "$base"
+
 # leak-gate-ci.sh, with a local origin and a gh that serves canned PRs and
 # records the statuses it's asked to post.
 mkdir -p "$work/origin/o" "$work/bin" "$work/gh"
@@ -271,6 +320,7 @@ cat > "$work/bin/gh" <<'GH'
 case "$*" in
   "api -X POST repos/o/r/statuses/"*)
     sha=${4##*/}
+    echo "${GH_TOKEN:-}" >> "$FAKE_GH/tokens"
     for arg in "$@"; do
       [[ $arg == state=* ]] && echo "${sha:0:12} ${arg#state=}" >> "$FAKE_GH/statuses"
     done
@@ -278,10 +328,13 @@ case "$*" in
     ;;
   "api --paginate repos/o/r/pulls?state=open&per_page=100")
     [[ ! -e $FAKE_GH/list-fails ]] || { echo "HTTP 502" >&2; exit 1; }
-    cat "$FAKE_GH/open.json"
-    ;;
-  "api repos/o/r/pulls/"*)
-    jq --argjson n "${2##*/}" '.[] | select(.number == $n)' "$FAKE_GH/open.json"
+    lists=$(( $(cat "$FAKE_GH/lists" 2>/dev/null || echo 0) + 1 ))
+    echo "$lists" > "$FAKE_GH/lists"
+    if (( lists > 1 )) && [[ -e $FAKE_GH/open-later.json ]]; then
+      cat "$FAKE_GH/open-later.json"
+    else
+      cat "$FAKE_GH/open.json"
+    fi
     ;;
   *)
     echo "fake gh: unexpected: $*" >&2
@@ -311,10 +364,12 @@ run_ci() {
   git -C "$clone" remote add origin "file://$work/origin/o/r.git"
   printf '%s\n' "$json" > "$work/event.json"
   : > "$work/gh/statuses"
+  : > "$work/gh/tokens"
+  rm -f "$work/gh/lists"
   status=0
   output=$(cd "$clone" && env PATH="$work/bin:$PATH" FAKE_GH="$work/gh" GITHUB_REPOSITORY=o/r GITHUB_EVENT_NAME="$event" \
     GITHUB_EVENT_PATH="$work/event.json" GITHUB_SHA="$base" RUNNER_TEMP="$(mktemp -d -p "$work")" \
-    RUN_URL=https://example.invalid/run LEAK_PATTERN=zzleakzz "$@" bash "$ci" "$gate" 2>&1) || status=$?
+    RUN_URL=https://example.invalid/run LEAK_PATTERN=zzleakzz GH_TOKEN=job-token "$@" bash "$ci" "$gate" 2>&1) || status=$?
   posted=$(<"$work/gh/statuses")
 }
 
@@ -359,13 +414,42 @@ expect_status "a SHA no open PR has gets no status" 0
 expect_posted "a SHA no open PR has gets no status" ""
 pass "a SHA no open PR has gets no status"
 
-run_ci workflow_dispatch "{}" PR_NUMBER=4
-expect_status "a dispatch checks the PR's head" 0
-expect_posted "a dispatch checks the PR's head" "$head pending"$'\n'"$head success"
-pass "a dispatch checks the PR's head"
+run_ci workflow_dispatch "{}" HEAD_SHA="$(git rev-parse clean)"
+expect_status "a dispatch checks the PRs at the SHA it's given" 0
+expect_posted "a dispatch checks the PRs at the SHA it's given" "$head pending"$'\n'"$head success"
+pass "a dispatch checks the PRs at the SHA it's given"
+
+run_ci workflow_dispatch "{}" HEAD_SHA=4
+expect_status "a dispatch needs a full SHA" 2
+expect_posted "a dispatch needs a full SHA" ""
+pass "a dispatch needs a full SHA"
+
+printf '%s\n' "$(pr 4 clean "Add zzleakzz")" | jq -s . > "$work/gh/open-later.json"
+run_ci workflow_run "$(run_event clean)"
+rm "$work/gh/open-later.json"
+expect_status "a PR that changes during the check gets error, not a stale success" 2
+expect_posted "a PR that changes during the check gets error, not a stale success" "$head pending"$'\n'"$head error"
+[[ $output == *"changed while they were checked"* ]] || fail "a PR that changes during the check gets error, not a stale success" "$output"
+pass "a PR that changes during the check gets error, not a stale success"
+
+printf '%s\n' "$(pr 4 clean "Add four")" "$(pr 5 clean "Add zzleakzz")" | jq -s . > "$work/gh/open-later.json"
+run_ci workflow_run "$(run_event clean)"
+rm "$work/gh/open-later.json"
+expect_status "a PR that appears at the SHA during the check gets error too" 2
+expect_posted "a PR that appears at the SHA during the check gets error too" "$head pending"$'\n'"$head error"
+pass "a PR that appears at the SHA during the check gets error too"
+
+run_ci workflow_run "$(run_event clean)" STATUS_TOKEN=app-token
+expect_status "statuses go out with the app's token when there is one" 0
+[[ $(sort -u "$work/gh/tokens") == "app-token" ]] || fail "statuses go out with the app's token when there is one" "$(<"$work/gh/tokens")"
+pass "statuses go out with the app's token when there is one"
+
+run_ci workflow_run "$(run_event clean)"
+[[ $(sort -u "$work/gh/tokens") == "job-token" ]] || fail "without the app, statuses go out with the job's token" "$(<"$work/gh/tokens")"
+pass "without the app, statuses go out with the job's token"
 
 touch "$work/gh/status-fails"
-run_ci workflow_dispatch "{}" PR_NUMBER=4
+run_ci workflow_dispatch "{}" HEAD_SHA="$(git rev-parse clean)"
 rm "$work/gh/status-fails"
 (( status != 0 )) || fail "a status that can't be posted fails and says why" "$output"
 [[ $output == *"Couldn't post the leak-gate status"* ]] || fail "a status that can't be posted fails and says why" "$output"

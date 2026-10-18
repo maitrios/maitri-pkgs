@@ -69,14 +69,23 @@ report() {
   (( quiet )) || echo "  $1"
 }
 
+# git_out <file> <what> <git args...>: git's output in <file>, or stop. Every
+# git call goes through here, so a failure (a lazy blob fetch, say) can't pass
+# for an empty answer. git's own errors can name files, so they're dropped.
+git_out() {
+  local file=$1 what=$2
+  shift 2
+  git "$@" >"$file" 2>/dev/null || die "git failed reading $what"
+}
+
 commit=""
 git_diff() {
-  local spec=$1
-  shift
+  local file=$1 what=$2 spec=$3
+  shift 3
   case $spec in
-    net) git -c core.quotePath=false diff -M --no-color --no-ext-diff --no-textconv "$@" "$base...$head" ;;
-    commit) git -c core.quotePath=false diff-tree -r --root -M --no-commit-id "$@" "$commit" ;;
-    merge) git -c core.quotePath=false diff-tree --cc --no-commit-id "$@" "$commit" ;;
+    net) git_out "$file" "$what" -c core.quotePath=false diff -M --no-color --no-ext-diff --no-textconv "$@" "$base...$head" ;;
+    commit) git_out "$file" "$what" -c core.quotePath=false diff-tree -r --root -M --no-commit-id "$@" "$commit" ;;
+    merge) git_out "$file" "$what" -c core.quotePath=false diff-tree --cc --no-commit-id "$@" "$commit" ;;
   esac
 }
 
@@ -115,15 +124,16 @@ added_lines() {
 }
 
 # A merge only brings in what none of its parents has: a name, or a blob at
-# that path.
+# that path. ls-tree answers "not there" with empty output, so a failure stops.
 in_a_parent() {
-  local object=$1 path=$2 parent
+  local object=$1 path=$2 parent entry
   for parent in "${parents[@]}"; do
-    if [[ $object == "name" ]]; then
-      git cat-file -e "$parent:$path" 2>/dev/null && return 0
-    elif [[ $(git rev-parse --verify --quiet "$parent:$path" || true) == "$object" ]]; then
-      return 0
-    fi
+    git_out "$work/tree" "a parent's tree" --literal-pathspecs ls-tree -z "$parent" -- "$path"
+    [[ -s $work/tree ]] || continue
+    [[ $object == "name" ]] && return 0
+    IFS= read -r -d '' entry <"$work/tree" || true
+    entry=${entry%%$'\t'*}
+    [[ ${entry##* } == "$object" ]] && return 0
   done
   return 1
 }
@@ -133,11 +143,13 @@ in_a_parent() {
 # spellings of a name (quoted, and raw from -z) map to the same number.
 scan_diff() {
   local spec=$1 label=$2 i path raw line entry blob shown
-  local -a quoted raws
+  local -a quoted raws added_names entries
   local -A number
 
-  mapfile -t quoted < <(git_diff "$spec" --name-only)
-  mapfile -d '' -t raws < <(git_diff "$spec" --name-only -z)
+  git_diff "$work/names" "$label's file names" "$spec" --name-only
+  mapfile -t quoted <"$work/names"
+  git_diff "$work/names" "$label's file names" "$spec" --name-only -z
+  mapfile -d '' -t raws <"$work/names"
   (( ${#raws[@]} )) || return 0
   for i in "${!quoted[@]}"; do
     number[${quoted[i]}]=$(( i + 1 ))
@@ -147,7 +159,8 @@ scan_diff() {
   done
   parents=()
   if [[ $spec == "merge" ]]; then
-    mapfile -t parents < <(git rev-parse "$commit^@")
+    git_out "$work/parents" "$label's parents" rev-parse "$commit^@"
+    mapfile -t parents <"$work/parents"
   fi
 
   # Raw names, so git's quoting can't hide a match.
@@ -158,25 +171,34 @@ scan_diff() {
       fi
     done
   else
-    while IFS= read -r -d '' raw; do
+    git_diff "$work/names" "$label's new file names" "$spec" --name-only -z --diff-filter=ACR
+    mapfile -d '' -t added_names <"$work/names"
+    for raw in "${added_names[@]}"; do
       if matches <<<"$raw"; then
         report "$label file #${number[$raw]:-?}, name"
       fi
-    done < <(git_diff "$spec" --name-only -z --diff-filter=ACR)
+    done
   fi
 
-  : > "$work/added"
-  : > "$work/where"
-  git_diff "$spec" -p -U0 --src-prefix=a/ --dst-prefix=b/ | added_lines
+  git_diff "$work/patch" "$label's diff" "$spec" -p -U0 --src-prefix=a/ --dst-prefix=b/
+  : >"$work/added"
+  : >"$work/where"
+  added_lines <"$work/patch"
   if [[ -s $work/added ]]; then
     while IFS=$'\t' read -r path line; do
       report "$label file #${number[$path]:-?}, line $line"
-    done < <(awk 'NR == FNR { hit[$1]; next } FNR in hit' <(matching_lines < "$work/added") "$work/where")
+    done < <(awk 'NR == FNR { hit[$1]; next } FNR in hit' <(matching_lines <"$work/added") "$work/where")
   fi
 
   # Binary files by their raw names, so cat-file finds them. Deleted ones are
   # left out, so a blob that can't be read is an error, not a skip.
-  while IFS= read -r -d '' entry; do
+  case $spec in
+    net) git_out "$work/numstat" "$label's file stats" diff --no-renames --no-ext-diff --no-textconv --diff-filter=d --numstat -z "$base...$head" ;;
+    commit) git_out "$work/numstat" "$label's file stats" diff-tree -r --root --no-commit-id --no-renames --diff-filter=d --numstat -z "$commit" ;;
+    merge) git_out "$work/numstat" "$label's file stats" diff-tree -r --no-commit-id --no-renames --diff-filter=d --numstat -z "$commit^1" "$commit" ;;
+  esac
+  mapfile -d '' -t entries <"$work/numstat"
+  for entry in "${entries[@]}"; do
     [[ ${entry%%$'\t'*} == "-" ]] || continue
     path=${entry#*$'\t'}
     path=${path#*$'\t'}
@@ -185,16 +207,11 @@ scan_diff() {
     if [[ $spec == "merge" ]] && in_a_parent "$blob" "$path"; then
       continue
     fi
-    if matches < <(git cat-file blob "$blob"); then
+    git_out "$work/blob" "$shown" cat-file blob "$blob"
+    if matches <"$work/blob"; then
       report "$shown, binary content"
     fi
-  done < <(
-    case $spec in
-      net) git diff --no-renames --no-ext-diff --no-textconv --diff-filter=d --numstat -z "$base...$head" ;;
-      commit) git diff-tree -r --root --no-commit-id --no-renames --diff-filter=d --numstat -z "$commit" ;;
-      merge) git diff-tree -r --no-commit-id --no-renames --diff-filter=d --numstat -z "$commit^1" "$commit" ;;
-    esac
-  )
+  done
 }
 
 net_numbered=0
@@ -203,18 +220,23 @@ commit_numbered=0
 scan_diff net "changed"
 (( found )) && net_numbered=1
 
-while read -r commit; do
+git_out "$work/commits" "the commit list" rev-list "$base..$head"
+mapfile -t commits <"$work/commits"
+for commit in "${commits[@]}"; do
   before=$found
-  if (( $(git rev-list --parents -n 1 "$commit" | wc -w) > 2 )); then
+  git_out "$work/parents" "commit ${commit:0:12}'s parents" rev-list --parents -n 1 "$commit"
+  read -r -a family <"$work/parents"
+  if (( ${#family[@]} > 2 )); then
     scan_diff merge "commit ${commit:0:12}"
   else
     scan_diff commit "commit ${commit:0:12}"
   fi
   (( found > before )) && commit_numbered=1
+  git_out "$work/message" "commit ${commit:0:12}'s message" log -1 --format=%B "$commit"
   while read -r line; do
     report "commit ${commit:0:12} message, line $line"
-  done < <(git log -1 --format=%B "$commit" | matching_lines)
-done < <(git rev-list "$base..$head")
+  done < <(matching_lines <"$work/message")
+done
 
 if [[ -n ${PR_TITLE:-} ]] && matches <<<"$PR_TITLE"; then
   report "the PR title"

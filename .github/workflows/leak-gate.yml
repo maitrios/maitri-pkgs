@@ -6,7 +6,9 @@ name: Leak gate
 # .github/leak-gate.sh and .github/leak-gate-ci.sh always come from main: a PR's
 # commits, diff, title, body and branch are fetched and read as data, never
 # checked out or run. Leak gate PR (leak-gate-pr.yml) starts it for PRs, forks
-# and Dependabot included.
+# and Dependabot included. With the leak-gate GitHub App set up
+# (LEAK_GATE_APP_ID and LEAK_GATE_APP_KEY in the environment), the status is
+# posted as that app, so a required check on main can be pinned to it.
 #
 # Here, unlike maitri, leak-gate isn't a required check: the auto/ PRs are
 # package bumps from upstream data, opened with GITHUB_TOKEN so no workflow
@@ -22,14 +24,16 @@ on:
     branches: [main]
   workflow_dispatch:
     inputs:
-      pr:
-        description: Number of the PR to check
+      sha:
+        description: Full head SHA to check (every open PR at it is checked)
         required: true
 
 permissions: {}
 
+# One group per head SHA, whatever started the run, so an older run can't post
+# over a newer one.
 concurrency:
-  group: leak-gate-${{ github.event.workflow_run.head_sha || inputs.pr || github.sha }}
+  group: leak-gate-${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
   cancel-in-progress: true
 
 jobs:
@@ -43,6 +47,15 @@ jobs:
       pull-requests: read
       statuses: write
     steps:
+      - name: Get the leak-gate app's token
+        id: app
+        if: vars.LEAK_GATE_APP_ID != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.LEAK_GATE_APP_ID }}
+          private-key: ${{ secrets.LEAK_GATE_APP_KEY }}
+          permission-statuses: write
+
       # No checkout and every git command quiet: checkout prints the head
       # commit's subject, and fetching every ref prints every branch name.
       # .github/leak-gate-ci.sh takes it from here, with the PR's text kept in
@@ -51,7 +64,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           LEAK_PATTERN: ${{ secrets.LEAK_PATTERN }}
-          PR_NUMBER: ${{ inputs.pr }}
+          STATUS_TOKEN: ${{ steps.app.outputs.token }}
+          HEAD_SHA: ${{ inputs.sha }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           git init -q "$RUNNER_TEMP/repo"
