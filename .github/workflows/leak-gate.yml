@@ -1,0 +1,52 @@
+name: Leak gate
+
+# Fails a PR, or a push to main, that carries one of the forbidden names. The
+# LEAK_PATTERN secret holds them; .github/leak-gate.sh checks the added lines,
+# new file names, commit messages, title, body and branch, and prints only
+# where something matched. .github/leak-gate-test.sh covers it with a dummy
+# pattern first. A missing secret fails, except on a fork's PR (below).
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leak-gate-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  leak-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out the change
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Test the gate with a dummy pattern
+        run: .github/leak-gate-test.sh
+
+      - name: Check for the forbidden names
+        env:
+          LEAK_PATTERN: ${{ secrets.LEAK_PATTERN }}
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_BRANCH: ${{ github.head_ref }}
+          # A fork's PR never sees secrets, and failing every outside contributor's PR would be noise; agents push same-repo branches.
+          FORK: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          args=()
+          if [[ $FORK == "true" ]]; then
+            args+=(--fork)
+          fi
+          .github/leak-gate.sh "${args[@]}" "$BASE" "$HEAD"
