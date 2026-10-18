@@ -96,7 +96,9 @@ if [[ ! -s $RUNNER_TEMP/prs.jsonl ]]; then
 fi
 
 set_status pending "Checking for the forbidden names"
-mapfile -t bases < <(jq -r .base.sha "$RUNNER_TEMP/prs.jsonl" | sort -u)
+jq -r .base.sha "$RUNNER_TEMP/prs.jsonl" >"$RUNNER_TEMP/bases"
+sort -u -o "$RUNNER_TEMP/bases" "$RUNNER_TEMP/bases"
+mapfile -t bases <"$RUNNER_TEMP/bases"
 fetch "$sha" "${bases[@]}"
 
 # success < error < failure
@@ -105,7 +107,8 @@ mapfile -t prs <"$RUNNER_TEMP/prs.jsonl"
 for pr in "${prs[@]}"; do
   number=$(jq -r .number <<<"$pr")
   args=()
-  if [[ $(jq -r --arg repo "$repo" '.head.repo.full_name != $repo' <<<"$pr") == "true" ]]; then
+  fork=$(jq -r --arg repo "$repo" '.head.repo.full_name != $repo' <<<"$pr")
+  if [[ $fork != "false" ]]; then
     args+=(--quiet)
   fi
   PR_TITLE=$(jq -r '.title // ""' <<<"$pr")
@@ -114,7 +117,8 @@ for pr in "${prs[@]}"; do
   export PR_TITLE PR_BODY PR_BRANCH
   echo "PR #$number"
   result=0
-  bash "$gate" "${args[@]}" "$(jq -r .base.sha <<<"$pr")" "$sha" || result=$?
+  pr_base=$(jq -r .base.sha <<<"$pr")
+  bash "$gate" "${args[@]}" "$pr_base" "$sha" || result=$?
   case $result in
     0) rank=0 ;;
     1) rank=2 ;;

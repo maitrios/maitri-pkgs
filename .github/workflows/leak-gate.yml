@@ -56,6 +56,14 @@ jobs:
           private-key: ${{ secrets.LEAK_GATE_APP_KEY }}
           permission-statuses: write
 
+      # A required check pinned to the app only takes the app's status, so a
+      # job-token error wouldn't count: say what happened and fail instead.
+      - name: Explain a missing app token
+        if: failure() && steps.app.outcome == 'failure'
+        run: |
+          echo "::error title=No leak-gate status posted::Couldn't get the leak-gate app's token, so this run posted no status and an older one may still stand. Fix the app (LEAK_GATE_APP_ID, LEAK_GATE_APP_KEY and its installation on this repo), then re-run this run."
+          exit 1
+
       # No checkout and every git command quiet: checkout prints the head
       # commit's subject, and fetching every ref prints every branch name.
       # .github/leak-gate-ci.sh takes it from here, with the PR's text kept in

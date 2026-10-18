@@ -52,12 +52,21 @@ status=0
 grep -q -i -E -f "$patterns" </dev/null 2>/dev/null || status=$?
 (( status == 1 )) || die "LEAK_PATTERN is not a valid extended regex"
 
+# matches: whether stdin matches. grep's exit 2 is an error, never "no match".
 matches() {
-  grep -q -a -i -E -f "$patterns" 2>/dev/null
+  local status=0
+  grep -q -a -i -E -f "$patterns" 2>/dev/null || status=$?
+  (( status < 2 )) || die "grep failed while checking"
+  return "$status"
 }
 
+# matching_lines <file>: the numbers of the lines in <file> that match, in
+# $work/hits.
 matching_lines() {
-  { grep -n -a -h -i -E --color=never -f "$patterns" 2>/dev/null || true; } | cut -d: -f1
+  local status=0
+  grep -n -a -h -i -E --color=never -f "$patterns" "$1" >"$work/hits-raw" 2>/dev/null || status=$?
+  (( status < 2 )) || die "grep failed while checking"
+  cut -d: -f1 "$work/hits-raw" >"$work/hits"
 }
 
 found=0
@@ -185,9 +194,14 @@ scan_diff() {
   : >"$work/where"
   added_lines <"$work/patch"
   if [[ -s $work/added ]]; then
-    while IFS=$'\t' read -r path line; do
-      report "$label file #${number[$path]:-?}, line $line"
-    done < <(awk 'NR == FNR { hit[$1]; next } FNR in hit' <(matching_lines <"$work/added") "$work/where")
+    matching_lines "$work/added"
+    if [[ -s $work/hits ]]; then
+      awk 'NR == FNR { hit[$1]; next } FNR in hit' "$work/hits" "$work/where" >"$work/hit-where" ||
+        die "awk failed while checking"
+      while IFS=$'\t' read -r path line; do
+        report "$label file #${number[$path]:-?}, line $line"
+      done <"$work/hit-where"
+    fi
   fi
 
   # Binary files by their raw names, so cat-file finds them. Deleted ones are
@@ -233,17 +247,20 @@ for commit in "${commits[@]}"; do
   fi
   (( found > before )) && commit_numbered=1
   git_out "$work/message" "commit ${commit:0:12}'s message" log -1 --format=%B "$commit"
+  matching_lines "$work/message"
   while read -r line; do
     report "commit ${commit:0:12} message, line $line"
-  done < <(matching_lines <"$work/message")
+  done <"$work/hits"
 done
 
 if [[ -n ${PR_TITLE:-} ]] && matches <<<"$PR_TITLE"; then
   report "the PR title"
 fi
+printf '%s\n' "${PR_BODY:-}" >"$work/body"
+matching_lines "$work/body"
 while read -r line; do
   report "the PR body, line $line"
-done < <(matching_lines <<<"${PR_BODY:-}")
+done <"$work/hits"
 if [[ -n ${PR_BRANCH:-} ]] && matches <<<"$PR_BRANCH"; then
   report "the branch name"
 fi

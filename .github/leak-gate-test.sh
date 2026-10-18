@@ -258,32 +258,38 @@ run_gate nope LEAK_PATTERN=zzleakzz
 expect_status "an unknown base fails" 2
 pass "an unknown base fails"
 
-# Every git call the gate makes, failed one at a time, has to stop it (exit 2)
-# rather than pass. The shim fails call number GIT_SHIM_FAIL.
-real_git=$(command -v git)
-mkdir -p "$work/gitshim"
-cat > "$work/gitshim/git" <<GIT
+# Every git or grep call the gate makes, failed one at a time, has to stop it
+# (exit 2) rather than pass. A shim fails its call number SHIM_FAIL.
+# make_shim <tool> <exit code>
+make_shim() {
+  local tool=$1 code=$2 real
+  real=$(command -v "$tool")
+  mkdir -p "$work/shim-$tool"
+  cat > "$work/shim-$tool/$tool" <<SHIM
 #!/bin/bash
-n=\$(( \$(cat "$work/gitshim/count") + 1 ))
-echo "\$n" > "$work/gitshim/count"
-[[ \${GIT_SHIM_FAIL:-0} != "\$n" ]] || exit 128
-exec "$real_git" "\$@"
-GIT
-chmod +x "$work/gitshim/git"
+n=\$(( \$(cat "$work/shim-$tool/count") + 1 ))
+echo "\$n" > "$work/shim-$tool/count"
+[[ \${SHIM_FAIL:-0} != "\$n" ]] || exit $code
+exec "$real" "\$@"
+SHIM
+  chmod +x "$work/shim-$tool/$tool"
+}
+make_shim git 128
+make_shim grep 2
 
-# fail_each_git_call <description> <base>: run the gate once to count its git
-# calls, then once per call with that call failing.
-fail_each_git_call() {
-  local description=$1 from=$2 calls n
-  echo 0 > "$work/gitshim/count"
-  run_gate "$from" LEAK_PATTERN=zzleakzz PATH="$work/gitshim:$PATH"
+# fail_each_call <tool> <description> <base>: run the gate once to count its
+# calls to <tool>, then once per call with that call failing.
+fail_each_call() {
+  local tool=$1 description=$2 from=$3 calls n
+  echo 0 > "$work/shim-$tool/count"
+  run_gate "$from" LEAK_PATTERN=zzleakzz PATH="$work/shim-$tool:$PATH"
   expect_status "$description" 0
-  calls=$(<"$work/gitshim/count")
-  (( calls > 10 )) || fail "$description" "only $calls git calls"
+  calls=$(<"$work/shim-$tool/count")
+  (( calls > 5 )) || fail "$description" "only $calls $tool calls"
   for (( n = 1; n <= calls; n++ )); do
-    echo 0 > "$work/gitshim/count"
-    run_gate "$from" LEAK_PATTERN=zzleakzz PATH="$work/gitshim:$PATH" GIT_SHIM_FAIL=$n
-    (( status == 2 )) || fail "$description" "git call $n of $calls failing gave exit $status:"$'\n'"$output"
+    echo 0 > "$work/shim-$tool/count"
+    run_gate "$from" LEAK_PATTERN=zzleakzz PATH="$work/shim-$tool:$PATH" SHIM_FAIL=$n
+    (( status == 2 )) || fail "$description" "$tool call $n of $calls failing gave exit $status:"$'\n'"$output"
     expect_absent "$description" "No forbidden names"
   done
   pass "$description ($calls calls)"
@@ -295,7 +301,8 @@ echo four >> notes.txt
 save "add an image and a line"
 git mv notes.txt renamed.txt
 save "rename notes"
-fail_each_git_call "any failing git call stops the gate, never passes it" "$base"
+fail_each_call git "any failing git call stops the gate, never passes it" "$base"
+fail_each_call grep "any failing grep call stops the gate, never passes it" "$base"
 
 git checkout -q -B shim-a "$base"
 sed -i 's/^one$/one-a/' notes.txt
@@ -305,7 +312,8 @@ sed -i 's/^three$/three-b/' notes.txt
 printf 'PNG\0b\0' > b.bin
 save "b side"
 git merge -q --no-edit shim-a >/dev/null
-fail_each_git_call "any failing git call in a merge stops the gate too" "$base"
+fail_each_call git "any failing git call in a merge stops the gate too" "$base"
+fail_each_call grep "any failing grep call in a merge stops the gate too" "$base"
 
 # leak-gate-ci.sh, with a local origin and a gh that serves canned PRs and
 # records the statuses it's asked to post.
