@@ -5,7 +5,7 @@ name: Leak gate PR
 # PR's own copy of .github/leak-gate-test.sh, which tries the PR's
 # .github/leak-gate.sh on a scratch repo with a dummy pattern.
 
-run-name: Leak gate PR #${{ github.event.pull_request.number }}
+run-name: "Leak gate PR #${{ github.event.pull_request.number }}"
 
 on:
   pull_request:
