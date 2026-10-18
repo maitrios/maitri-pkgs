@@ -1,0 +1,38 @@
+name: Leak gate PR
+
+# Starts leak-gate.yml for each PR event. That one checks the PR from main's
+# copy with the LEAK_PATTERN secret; this run gets no secrets. It does run the
+# PR's own copy of .github/leak-gate-test.sh, which tries the PR's
+# .github/leak-gate.sh on a scratch repo with a dummy pattern.
+
+run-name: Leak gate PR #${{ github.event.pull_request.number }}
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions: {}
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      # Fetched by hand and quietly, like leak-gate.yml.
+      - name: Test the PR's copy of the gate with a dummy pattern
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git init -q "$RUNNER_TEMP/repo"
+          cd "$RUNNER_TEMP/repo"
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          # shellcheck disable=SC2016
+          git config credential.helper '!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f'
+          git fetch -q --no-tags --depth=1 origin "$GITHUB_SHA"
+          mkdir "$RUNNER_TEMP/gate"
+          git show "$GITHUB_SHA:.github/leak-gate.sh" >"$RUNNER_TEMP/gate/leak-gate.sh"
+          git show "$GITHUB_SHA:.github/leak-gate-test.sh" >"$RUNNER_TEMP/gate/leak-gate-test.sh"
+          chmod +x "$RUNNER_TEMP/gate/leak-gate.sh"
+          bash "$RUNNER_TEMP/gate/leak-gate-test.sh"

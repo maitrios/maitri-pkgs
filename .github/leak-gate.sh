@@ -6,10 +6,8 @@
 # it adds, copies or renames, its commit messages, and PR_TITLE, PR_BODY and
 # PR_BRANCH when set. Only where something matched is printed, never the
 # pattern or the text it matched. Exits 1 on a match and 2 when it can't check.
-# --fork passes with a warning when LEAK_PATTERN is empty, since a fork's PR
-# never sees secrets.
 #
-#   LEAK_PATTERN=... leak-gate.sh [--fork] <base> <head>
+#   LEAK_PATTERN=... leak-gate.sh <base> <head>
 
 set -euo pipefail
 
@@ -26,12 +24,7 @@ die() {
   exit 2
 }
 
-fork=0
-if [[ ${1:-} == "--fork" ]]; then
-  fork=1
-  shift
-fi
-(( $# == 2 )) || die "usage: leak-gate.sh [--fork] <base> <head>"
+(( $# == 2 )) || die "usage: leak-gate.sh <base> <head>"
 base=$(git rev-parse --verify --quiet "$1^{commit}") || die "$1 is not a commit in this clone"
 head=$(git rev-parse --verify --quiet "$2^{commit}") || die "$2 is not a commit in this clone"
 
@@ -43,13 +36,7 @@ patterns="$work/patterns"
 printf '%s\n' "${LEAK_PATTERN:-}" | tr -d '\r' | sed '/^[[:space:]]*$/d' > "$patterns"
 unset LEAK_PATTERN
 
-if [[ ! -s $patterns ]]; then
-  if (( fork )); then
-    say warning "This PR comes from a fork, which never sees the LEAK_PATTERN secret, so the forbidden-names check didn't run. A maintainer has to run it by hand before merging."
-    exit 0
-  fi
-  die "LEAK_PATTERN is empty. Set the Actions secret, and the Dependabot one for Dependabot's PRs, from the pattern file: gh secret set LEAK_PATTERN -R ${GITHUB_REPOSITORY:-<owner>/<repo>} < <file>, then again with --app dependabot."
-fi
+[[ -s $patterns ]] || die "LEAK_PATTERN is empty. Set it in the leak-gate environment from the pattern file: gh secret set LEAK_PATTERN --env leak-gate -R ${GITHUB_REPOSITORY:-<owner>/<repo>} < <file>"
 
 # grep's own error for a bad regex can quote the pattern, so it never reaches the log.
 status=0
@@ -90,10 +77,15 @@ report() {
 
 diff_args=(-c core.quotePath=false diff -M --no-color --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/)
 
+# Numbered by both the quoted and the raw (-z) spelling of each name.
 declare -A file_number
 mapfile -t changed < <(git "${diff_args[@]}" --name-only "$base...$head")
+mapfile -d '' -t changed_raw < <(git "${diff_args[@]}" --name-only -z "$base...$head")
 for i in "${!changed[@]}"; do
   file_number[${changed[i]}]=$(( i + 1 ))
+  if [[ -n ${changed_raw[i]:-} ]]; then
+    file_number[${changed_raw[i]}]=$(( i + 1 ))
+  fi
 done
 
 name_file() {
@@ -139,14 +131,21 @@ if [[ -s $work/added ]]; then
   done < <(awk 'NR == FNR { hit[$1]; next } FNR in hit' <(matching_lines < "$work/added") "$work/where")
 fi
 
-while IFS=$'\t' read -r additions _ path; do
-  [[ $additions == "-" ]] || continue
-  git cat-file -e "$head:$path" 2>/dev/null || continue
-  if matches < <(git cat-file blob "$head:$path"); then
-    name_file "$path"
+# Binary files, by their raw names so cat-file finds them. Deleted ones are
+# left out, so a blob that can't be read is an error, not a skip.
+while IFS= read -r -d '' entry; do
+  [[ ${entry%%$'\t'*} == "-" ]] || continue
+  path=${entry#*$'\t'}
+  path=${path#*$'\t'}
+  number=${file_number[$path]:-}
+  blob=$(git rev-parse --verify --quiet "$head:$path") || die "can't read changed file #${number:-?} at ${head:0:12}"
+  if matches < <(git cat-file blob "$blob"); then
+    shown=$path
+    [[ -n $number ]] && shown=${changed[number - 1]}
+    name_file "$shown"
     report "$name (binary)"
   fi
-done < <(git -c core.quotePath=false diff --no-renames --no-ext-diff --no-textconv --numstat "$base...$head")
+done < <(git diff --no-renames --no-ext-diff --no-textconv --diff-filter=d --numstat -z "$base...$head")
 
 while read -r commit; do
   while read -r line; do

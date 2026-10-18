@@ -38,22 +38,12 @@ save() {
   git commit -q -m "$1"
 }
 
-# run_gate <base> [VAR=value...] [-- gate args]
+# run_gate <base> [VAR=value...]
 run_gate() {
   local from=$1
   shift
-  local vars=() args=()
-  while (( $# )); do
-    if [[ $1 == "--" ]]; then
-      shift
-      args=("$@")
-      break
-    fi
-    vars+=("$1")
-    shift
-  done
   status=0
-  output=$(env "${vars[@]}" "$gate" "${args[@]}" "$from" HEAD 2>&1) || status=$?
+  output=$(env "$@" "$gate" "$from" HEAD 2>&1) || status=$?
 }
 
 expect_status() {
@@ -137,6 +127,19 @@ save "add image"
 run_gate "$base" LEAK_PATTERN=zzleakzz
 expect_leak "a binary file is searched too" "image.bin (binary)"
 
+start oddbinary
+printf 'PNG\0\0zzleakzz\0' > $'odd "name"\twith\\slash.bin'
+save "add odd image"
+run_gate "$base" LEAK_PATTERN=zzleakzz
+expect_leak "a binary file with a quote, tab and backslash in its name is searched too" "odd" "(binary)"
+
+git checkout -q -B dropbinary binary
+git rm -q image.bin
+save "drop image"
+run_gate "$(git rev-parse binary)" LEAK_PATTERN=zzleakzz
+expect_status "a deleted binary file is not a leak" 0
+pass "a deleted binary file is not a leak"
+
 git checkout -q clean
 run_gate "$base" LEAK_PATTERN=zzleakzz PR_TITLE="Add zzleakzz" PR_BODY=$'Adds a line.\r\nThe ZZLEAKZZ part.' PR_BRANCH=beyer/zzleakzz
 expect_leak "the title, body and branch are reported by name" "the PR title" "the PR body, line 2" "the branch name"
@@ -153,15 +156,6 @@ pass "a missing pattern fails closed"
 run_gate "$base" LEAK_PATTERN=$'\n  \n'
 expect_status "a pattern of blank lines counts as missing" 2
 pass "a pattern of blank lines counts as missing"
-
-run_gate "$base" LEAK_PATTERN= GITHUB_ACTIONS=true -- --fork
-expect_status "a fork's PR passes with a warning when the pattern is missing" 0
-[[ $output == "::warning::"*"by hand"* ]] || fail "a fork's PR passes with a warning when the pattern is missing" "$output"
-pass "a fork's PR passes with a warning when the pattern is missing"
-
-git checkout -q line
-run_gate "$base" LEAK_PATTERN=zzleakzz -- --fork
-expect_leak "a fork's PR is still checked when the pattern is there" "notes.txt:4"
 
 run_gate "$base" LEAK_PATTERN='zzleak(zz'
 expect_status "an invalid pattern fails without quoting it" 2
