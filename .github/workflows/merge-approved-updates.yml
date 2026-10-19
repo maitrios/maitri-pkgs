@@ -9,8 +9,7 @@ on:
   pull_request_review:
     types: [submitted]
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: merge-approved-updates-${{ github.event.pull_request.number }}

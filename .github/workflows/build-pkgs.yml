@@ -22,8 +22,7 @@ on:
         type: string
         default: ""
 
-permissions:
-  contents: write
+permissions: {}
 
 concurrency:
   group: build-pkgs
@@ -134,6 +133,8 @@ jobs:
         channel: [stable, edge]
     runs-on: ubuntu-latest
     container: archlinux:latest
+    permissions:
+      contents: write
     concurrency:
       group: publish-${{ matrix.channel }}
       cancel-in-progress: false
