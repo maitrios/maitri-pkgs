@@ -1,0 +1,1 @@
+manual = "pinned to a master commit with load_qtquick_611.patch applied at fuzz 0, and every Qt bump in Arch needs a pkgrel rebuild; move it by hand alongside omarchy-pkgs"
