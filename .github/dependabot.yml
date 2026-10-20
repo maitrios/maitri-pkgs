@@ -1,11 +1,24 @@
+# Written by the k7 GitHub standard (k7lab/infra metal/github/dependabot.ts, #260) from what maitrios/maitri-pkgs holds.
+# Edits here are drift: the next apply opens a PR that puts this back. Change metal/github/standard.yaml instead.
 version: 2
+multi-ecosystem-groups:
+  deps:
+    schedule:
+      interval: cron
+      cronjob: "20 4 * * 1,3,5"
+      timezone: Pacific/Honolulu
+    labels: ["kind:chore"]
+    commit-message:
+      prefix: "chore(deps)"
 updates:
   - package-ecosystem: github-actions
-    directory: /
-    schedule:
-      interval: weekly
-    commit-message:
-      prefix: "ci"
+    directories: ["/"]
+    multi-ecosystem-group: deps
+    patterns: ["*"]
+    labels: ["kind:chore"]
+    cooldown:
+      default-days: 3
     groups:
-      actions:
+      security:
+        applies-to: security-updates
         patterns: ["*"]
