@@ -19,8 +19,7 @@ on:
         type: string
         default: ""
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: update-packages
@@ -30,6 +29,8 @@ jobs:
   discover:
     runs-on: ubuntu-latest
     container: archlinux:latest
+    permissions:
+      contents: read
     outputs:
       packages: ${{ steps.plan.outputs.packages }}
     steps:
@@ -89,6 +90,8 @@ jobs:
         package: ${{ fromJSON(needs.discover.outputs.packages) }}
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
