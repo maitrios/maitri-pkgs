@@ -1,7 +1,7 @@
 # Maintainer: Ryan Hughes <ryan@maitri.org>
 pkgname=maitri-nvim
 pkgver=2026.10.17
-pkgrel=1
+pkgrel=2
 pkgdesc="Pre-built LazyVim configuration with cached plugins"
 arch=('any')
 url="https://github.com/LazyVim/LazyVim"
