@@ -63,6 +63,8 @@ jobs:
           : >updates/unchanged.txt
           git fetch --no-tags origin '+refs/heads/auto/*:refs/remotes/origin/auto/*' || true
           for name in $(jq -r '.[] | select(.status == "updated") | .name' updates/report.json); do
+            # A first rebuilt-against.json is untracked; diff ignores it unless intended to add.
+            git add -N -- "pkgbuilds/$name"
             git diff -- "pkgbuilds/$name" >"updates/patches/$name.patch"
             if [[ -z $FORCE ]] && git rev-parse -q --verify "refs/remotes/origin/auto/$name" >/dev/null &&
               git diff --quiet "origin/auto/$name" -- "pkgbuilds/$name"; then

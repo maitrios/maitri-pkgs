@@ -1,1 +1,4 @@
-manual = "pinned to a master commit with load_qtquick_611.patch applied at fuzz 0, and every Qt bump in Arch needs a pkgrel rebuild; move it by hand alongside omarchy-pkgs"
+manual = "pinned to a master commit with load_qtquick_611.patch applied at fuzz 0; move it by hand alongside omarchy-pkgs"
+# Links Qt private APIs, which the soname doesn't cover, so a Qt point release
+# can break it without a rebuild.
+rebuild_on = ["qt6-base", "qt6-declarative", "qt6-wayland"]
