@@ -71,6 +71,12 @@ Run workflow** with an optional `packages` list:
      bump that changes no source URL fails instead of rebuilding the old release.
 
    `manual = "reason"` opts a recipe out. Recipes with a `pkgver()` function are left alone.
+
+   `rebuild_on = ["qt6-base", ...]` is for packages that break when an Arch dependency moves
+   underneath them, such as quickshell on Qt's private APIs. Each named package's version in
+   core/extra/multilib (`pacman -Si`) is compared to `.maitri/rebuilt-against.json`; when one
+   moves, pkgrel is bumped and the record rewritten, even on a `manual` recipe. A version update
+   refreshes the record without an extra bump.
 2. **verify** builds each update in a fresh Arch container (`.github/verify-package.sh`), resolving
    dependencies from Arch and the published `stable` channel.
 3. **propose** opens or refreshes one PR per package on `auto/<name>`. With `auto_merge = true`

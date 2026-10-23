@@ -4,11 +4,13 @@
     scripts/update-packages [--dry-run] [--report FILE] [NAME...]
 
 How a recipe updates comes from pkgbuilds/<name>/.maitri/upstream.toml, or
-from its .nvchecker.toml entry when it has none. README.md, "Automatic
-updates", describes both. PKGBUILDs are rewritten in place; --dry-run puts
-them back afterwards and skips updpkgsums.
+from its .nvchecker.toml entry when it has none. A recipe whose upstream.toml
+lists rebuild_on also gets a pkgrel bump when one of those Arch packages
+moves past the version in .maitri/rebuilt-against.json. README.md,
+"Automatic updates", describes all of it. PKGBUILDs are rewritten in place;
+--dry-run puts them back afterwards and skips updpkgsums.
 
-Needs Python 3.11+, bash, gpgv, vercmp, nvchecker and updpkgsums.
+Needs Python 3.11+, bash, gpgv, pacman, vercmp, nvchecker and updpkgsums.
 """
 
 import argparse
@@ -43,6 +45,10 @@ IDENTIFIER = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 PLACEHOLDER = re.compile(r"\{([A-Za-z_][A-Za-z0-9_]*)\}")
 CHECKSUMS = re.compile(r"^[ \t]*(?:ck|md5|sha1|sha224|sha256|sha384|sha512|b2)sums(?:_[^=]+)?\+?=\(")
 COMMENT = re.compile(r"(?<!\S)#")
+PACKAGE_NAME = re.compile(r"[a-z0-9@_+][a-z0-9@._+-]*")
+# Only what the build container installs from. A Qt release sitting in
+# testing isn't what the package will link against.
+OFFICIAL_REPOS = {"core", "extra", "multilib"}
 
 
 class UpdateError(Exception):
@@ -519,21 +525,69 @@ def update_nvchecker(recipe: Recipe, context: Context) -> list[str]:
 METHODS = {"apt": update_apt, "script": update_script, "nvchecker": update_nvchecker}
 
 
+def rebuild_on(recipe: Recipe) -> list[str]:
+    names = recipe.meta.get("rebuild_on", [])
+    if not isinstance(names, list) or not all(isinstance(n, str) and PACKAGE_NAME.fullmatch(n) for n in names):
+        raise UpdateError("rebuild_on must be a list of package names")
+    return names
+
+
+def rebuild_record(recipe: Recipe) -> Path:
+    return recipe.path / ".maitri" / "rebuilt-against.json"
+
+
+def repo_versions(names: list[str]) -> dict[str, tuple[str, str]]:
+    result = subprocess.run(
+        ["pacman", "-Si", "--", *names], capture_output=True, text=True, env={**os.environ, "LC_ALL": "C"}
+    )
+    found: dict[str, tuple[str, str]] = {}
+    for block in result.stdout.split("\n\n"):
+        fields = {}
+        for line in block.splitlines():
+            key, sep, value = line.partition(":")
+            if sep and not line.startswith(" "):
+                fields[key.strip()] = value.strip()
+        name, repo, version = fields.get("Name"), fields.get("Repository"), fields.get("Version")
+        if name in names and repo in OFFICIAL_REPOS and name not in found:
+            found[name] = (repo, version)
+    missing = [name for name in names if name not in found]
+    if missing:
+        raise UpdateError(f"pacman -Si found no {', '.join(missing)} in {'/'.join(sorted(OFFICIAL_REPOS))}")
+    return found
+
+
+def moved_dependencies(recipe: Recipe) -> tuple[dict[str, str], dict[str, str]]:
+    names = rebuild_on(recipe)
+    if not names:
+        return {}, {}
+    current = repo_versions(names)
+    record = rebuild_record(recipe)
+    recorded = json.loads(record.read_text()) if record.exists() else {}
+    moved = {
+        name: f"{name} moved from {recorded.get(name, 'unrecorded')} to {version} in Arch's {repo}"
+        for name, (repo, version) in current.items()
+        if recorded.get(name) != version
+    }
+    return {name: version for name, (_, version) in sorted(current.items())}, moved
+
+
 def method_for(recipe: Recipe, nvchecker_entries: dict) -> str | None:
     if "manual" in recipe.meta:
         return "manual"
     for method in ("apt", "script"):
         if method in recipe.meta:
             return method
-    if recipe.name in nvchecker_entries:
-        if has_function(recipe.path, "pkgver"):
-            return None
+    if recipe.name in nvchecker_entries and not has_function(recipe.path, "pkgver"):
         return "nvchecker"
+    if recipe.meta.get("rebuild_on"):
+        return "rebuild"
     return None
 
 
 def update_recipe(recipe: Recipe, method: str, context: Context) -> dict:
     original = recipe.pkgbuild.read_text()
+    record = rebuild_record(recipe)
+    original_record = record.read_text() if record.exists() else None
     before = version_of(recipe.path)
     entry = {
         "name": recipe.name,
@@ -541,12 +595,25 @@ def update_recipe(recipe: Recipe, method: str, context: Context) -> dict:
         "auto_merge": bool(recipe.meta.get("auto_merge", False)),
         "old": format_version(*before),
     }
+
+    def restore():
+        recipe.pkgbuild.write_text(original)
+        if original_record is None:
+            record.unlink(missing_ok=True)
+        else:
+            record.write_text(original_record)
+
     try:
-        notes = METHODS[method](recipe, context)
+        notes = METHODS[method](recipe, context) if method in METHODS else []
+        current, moved = moved_dependencies(recipe)
         text = recipe.pkgbuild.read_text()
-        if text == original:
-            entry["status"] = "current"
+        if text == original and not moved:
+            if method == "manual":
+                entry.update(status="manual", reason=recipe.meta["manual"])
+            else:
+                entry["status"] = "current"
             return entry
+        rebuild_only = text == original
         after = version_of(recipe.path)
         if after[:2] == before[:2]:
             if after[2] == before[2]:
@@ -555,18 +622,28 @@ def update_recipe(recipe: Recipe, method: str, context: Context) -> dict:
                 recipe.pkgbuild.write_text(assign(text, "pkgrel", str(int(before[2]) + 1)))
         elif vercmp(format_version(*after[:2]), format_version(*before[:2])) <= 0:
             raise UpdateError(f"refusing to move {format_version(*before)} back to {format_version(*after)}")
+        if current:
+            record.write_text(json.dumps(current, indent=2) + "\n")
         new = version_of(recipe.path)
+        if rebuild_only:
+            entry["method"] = "rebuild"
+            notes = list(moved.values()) + [
+                "Nothing in the recipe moved; it lists these under rebuild_on in .maitri/upstream.toml, so "
+                "pkgrel is bumped for a build against the new versions"
+            ]
         entry.update(status="updated", new=format_version(*new), notes=notes)
-        if new[:2] == before[:2]:
+        if rebuild_only:
+            entry["title"] = f"chore({recipe.name}): rebuild against {', '.join(f'{n} {current[n]}' for n in sorted(moved))}"
+        elif new[:2] == before[:2]:
             entry["title"] = f"chore({recipe.name}): repin {format_version(*new)} to upstream's rebuild"
         else:
             entry["title"] = f"chore({recipe.name}): update to {format_version(*new[:2])}"
     except UpdateError as error:
-        recipe.pkgbuild.write_text(original)
+        restore()
         entry.update(status="failed", error=str(error))
     finally:
         if context.dry_run:
-            recipe.pkgbuild.write_text(original)
+            restore()
     return entry
 
 
@@ -638,12 +715,12 @@ def main() -> int:
     for recipe, method in plan:
         if method is None:
             continue
-        if method == "manual":
+        if method == "manual" and not recipe.meta.get("rebuild_on"):
             entry = {"name": recipe.name, "method": "manual", "status": "manual", "reason": recipe.meta["manual"]}
         else:
             entry = update_recipe(recipe, method, context)
         report.append(entry)
-        line = f"{entry['status']:<8} {recipe.name:<34} {method:<10}"
+        line = f"{entry['status']:<8} {recipe.name:<34} {entry['method']:<10}"
         if entry["status"] == "updated":
             line += f" {entry['old']} -> {entry['new']}"
         elif entry["status"] == "failed":
