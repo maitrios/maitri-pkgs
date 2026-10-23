@@ -2,9 +2,9 @@
 # Contributor: Omarchy
 
 pkgname=grok-bot
-pkgver=0.75.2
+pkgver=0.75.3
 pkgrel=1
-_commit=ec623d18b8a375d2ab29814cf974ddb791d8c33b
+_commit=5acb0be5178da83005411731082da2dab1602ca7
 pkgdesc='Grok Bot desktop agent'
 arch=('x86_64' 'aarch64')
 url='https://x.ai/bot'
@@ -42,8 +42,8 @@ source_aarch64=(
 )
 sha256sums=('6dfa6c305941afa6cbaefbeaae06d05ab5a88f31630005d25a819a160c20c7a3'
             '3e2a2461ea58d17ac1777616be9ba660f7cb9ceefa9292016e36c55758bf78dd')
-sha256sums_x86_64=('06ba5ee6432bcbe417be1cb208e863e03988ad9996c39a1ecf2b85633e00505e')
-sha256sums_aarch64=('0e76eab78e0f5702f859323beac9700f0dfc96c47efa64a7e045993f1725ebb4')
+sha256sums_x86_64=('98d24c5df0fa36b462b80fc6fdea4d62060e115a462ee2cead1a8d9561b02c70')
+sha256sums_aarch64=('f07781dad852b6311cf9cfd233bf6e1942b9b11bd3bb3a7fc35fa1ae4634b9e8')
 noextract=("${_deb_x86_64}" "${_deb_aarch64}")
 
 package() {
