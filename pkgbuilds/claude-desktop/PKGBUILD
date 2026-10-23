@@ -6,7 +6,7 @@
 # (.maitri/upstream.toml).
 
 pkgname=claude-desktop
-pkgver=3.1623.4
+pkgver=3.6556.1
 pkgrel=1
 pkgdesc="Official Claude desktop app with Claude Code"
 arch=('x86_64' 'aarch64')
@@ -63,8 +63,8 @@ source_x86_64=("${_deb_x86_64}::${_pool}/${_deb_x86_64}")
 source_aarch64=("${_deb_aarch64}::${_pool}/${_deb_aarch64}")
 noextract=("${_deb_x86_64}" "${_deb_aarch64}")
 sha256sums=('edfdbc63b65891ef7c481b07086c7e630fc102c042b6ed65331a52fcaf72b14a')
-sha256sums_x86_64=('671c9fdfe0b02b50d4b907c3bdf136dcfec29051ab8cffcfa29ebe3026a72c3d')
-sha256sums_aarch64=('2d8b357a1bedbef7094e3fb170380bea63b7ef57c81f9f7ce6d5408698458c7f')
+sha256sums_x86_64=('ced5179997fdb90219e866685c7f3bcfcb494514d82022e27c89b28a371dfe87')
+sha256sums_aarch64=('488aff13fa0488c70cae41280f2d84827e1dc092e3082fb987554da2de06dcda')
 
 package() {
   cd "${srcdir}"
