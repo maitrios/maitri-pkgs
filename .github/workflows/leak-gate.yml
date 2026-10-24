@@ -1,0 +1,88 @@
+name: Leak gate
+
+# Checks each PR, and each push to main, for the forbidden names and posts the
+# result as the leak-gate commit status. The LEAK_PATTERN secret lives in the
+# leak-gate environment, which only main can use, and this file,
+# .github/leak-gate.sh and .github/leak-gate-ci.sh always come from main: a PR's
+# commits, diff, title, body and branch are fetched and read as data, never
+# checked out or run. Leak gate PR (leak-gate-pr.yml) starts it for PRs, forks
+# and Dependabot included. With the leak-gate GitHub App set up
+# (LEAK_GATE_APP_ID and LEAK_GATE_APP_KEY in the environment), the status is
+# posted as that app, so a required check on main can be pinned to it.
+#
+# Here, unlike maitri, leak-gate isn't a required check: the auto/ PRs are
+# package bumps from upstream data, opened with GITHUB_TOKEN so no workflow
+# runs for them, and requiring it would stall their merges (k7lab/maitrios#72).
+
+run-name: Leak gate
+
+on:
+  workflow_run:
+    workflows: [Leak gate PR]
+    types: [completed]
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: Full head SHA to check (every open PR at it is checked)
+        required: true
+
+permissions: {}
+
+# One group per head SHA, whatever started the run, so an older run can't post
+# over a newer one.
+concurrency:
+  group: leak-gate-${{ github.event.workflow_run.head_sha || inputs.sha || github.sha }}
+  cancel-in-progress: true
+
+jobs:
+  leak-gate:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.event == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: leak-gate
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - name: Get the leak-gate app's token
+        id: app
+        if: vars.LEAK_GATE_APP_ID != ''
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          app-id: ${{ vars.LEAK_GATE_APP_ID }}
+          private-key: ${{ secrets.LEAK_GATE_APP_KEY }}
+          permission-statuses: write
+
+      # A required check pinned to the app only takes the app's status, so a
+      # job-token error wouldn't count: say what happened and fail instead.
+      - name: Explain a missing app token
+        if: failure() && steps.app.outcome == 'failure'
+        run: |
+          echo "::error title=No leak-gate status posted::Couldn't get the leak-gate app's token, so this run posted no status and an older one may still stand. Fix the app (LEAK_GATE_APP_ID, LEAK_GATE_APP_KEY and its installation on this repo), then re-run this run."
+          exit 1
+
+      # No checkout and every git command quiet: checkout prints the head
+      # commit's subject, and fetching every ref prints every branch name.
+      # .github/leak-gate-ci.sh takes it from here, with the PR's text kept in
+      # variables, never in env, which the log prints.
+      - name: Check for the forbidden names
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LEAK_PATTERN: ${{ secrets.LEAK_PATTERN }}
+          STATUS_TOKEN: ${{ steps.app.outputs.token }}
+          HEAD_SHA: ${{ inputs.sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          git init -q "$RUNNER_TEMP/repo"
+          cd "$RUNNER_TEMP/repo"
+          git remote add origin "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY.git"
+          # git asks for the token when it needs it; it's never written down.
+          # shellcheck disable=SC2016
+          git config credential.helper '!f() { echo username=x-access-token; echo "password=$GH_TOKEN"; }; f'
+          git fetch -q --no-tags --filter=blob:none origin "$GITHUB_SHA"
+          git show "$GITHUB_SHA:.github/leak-gate.sh" >"$RUNNER_TEMP/leak-gate.sh"
+          git show "$GITHUB_SHA:.github/leak-gate-ci.sh" >"$RUNNER_TEMP/leak-gate-ci.sh"
+          bash "$RUNNER_TEMP/leak-gate-ci.sh" "$RUNNER_TEMP/leak-gate.sh"
