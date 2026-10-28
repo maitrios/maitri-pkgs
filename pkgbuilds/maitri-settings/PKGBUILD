@@ -10,9 +10,9 @@
 #    provenance only (empty when cut from a bare commit). maitri and
 #    maitri-settings must always carry identical _tag/_commit/pkgver/pkgrel.
 pkgname='maitri-settings'
-_tag='v0.7.3'
-_commit='15f96ad372f3b392875efd30ef60f24e8529c6f4'
-pkgver=0.7.3
+_tag='v0.7.4'
+_commit='54b3a4f4c6855fc5ff6a7f15e5572338f8adb9e2'
+pkgver=0.7.4
 pkgrel=1
 pkgdesc='maitri user defaults, /etc/skel content, fonts, plymouth theme, and support helpers'
 arch=('x86_64')
