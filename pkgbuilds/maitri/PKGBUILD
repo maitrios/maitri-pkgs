@@ -10,9 +10,9 @@
 #    provenance only (empty when cut from a bare commit). maitri and
 #    maitri-settings must always carry identical _tag/_commit/pkgver/pkgrel.
 pkgname='maitri'
-_tag='v0.7.4'
-_commit='54b3a4f4c6855fc5ff6a7f15e5572338f8adb9e2'
-pkgver=0.7.4
+_tag='v0.7.5'
+_commit='eeefb8ed8aac54d72312c84efecea77000791253'
+pkgver=0.7.5
 pkgrel=1
 pkgdesc='A beautiful, opinionated Arch Linux desktop by Kindness, grown from Omarchy'
 arch=('x86_64')
