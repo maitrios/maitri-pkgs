@@ -5,8 +5,8 @@
 # below from that repository's signed package index (.maitri/upstream.toml).
 
 pkgname=paper-desktop
-pkgver=0.5.17
-_build=261029t3v3jacnm
+pkgver=0.5.18
+_build=261031pthw9s82w
 pkgrel=1
 pkgdesc="Official Paper desktop app"
 arch=('x86_64' 'aarch64')
@@ -66,8 +66,8 @@ source_x86_64=("${_deb_x86_64}::${_pool}/${_deb_x86_64}")
 source_aarch64=("${_deb_aarch64}::${_pool}/${_deb_aarch64}")
 noextract=("${_deb_x86_64}" "${_deb_aarch64}")
 sha256sums=('7942e08374bf6a7d6359cb0e4d2bd54478a7e15ee06ab09565225dc9692cc833')
-sha256sums_x86_64=('7d0cb36e39c10b0a087693fa7c0235207d09672c83d5320315c68ce916f8d27a')
-sha256sums_aarch64=('e17ba379c78af79217be69962fccb7726b243c9a1d97cf95bba4ecc16d0d4587')
+sha256sums_x86_64=('bf9751a3417d39a7e6ade24f2026c377eb5308313bd7935ca33adc97ea070c72')
+sha256sums_aarch64=('997ead9bfe27d75cea650d0e0973fbcf80458dc224a86669422f9465f249f5f6')
 
 package() {
   cd "${srcdir}"
