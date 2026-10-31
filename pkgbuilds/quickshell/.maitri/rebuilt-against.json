@@ -1,5 +1,5 @@
 {
   "qt6-base": "6.12.0-3",
-  "qt6-declarative": "6.12.0-2",
+  "qt6-declarative": "6.12.0-3",
   "qt6-wayland": "6.12.0-1"
 }
