@@ -3,7 +3,7 @@ pkgname=1password-beta
 # pkgver is the version the automatic update moves. The tarballs spell the
 # same version with a dash before the build number, which pacman does not
 # allow in a pkgver, so _tarver derives it back.
-pkgver=8.12.44_25.BETA
+pkgver=8.12.46_26.BETA
 pkgrel=1
 _tarver=${pkgver//_/-}
 case "${CARCH}" in
@@ -22,9 +22,9 @@ license=('LicenseRef-1Password-Proprietary')
 options=(!strip)
 install="1password.install"
 source=()
-sha256sums_x86_64=('fda21595f35cd4b6f4a64cb23c85d51f43195c5051f472e066e46babcc6e45b6'
+sha256sums_x86_64=('cb395253175b3475068d3c3f7cab41e02cc8443e3aa189027679b744fd9341ff'
                    'SKIP')
-sha256sums_aarch64=('090f80ab866803be2c31519dd8249e07df46ed440de681aa6d64ccd7ad37858c'
+sha256sums_aarch64=('37ad68b022b2941a38bed0c155b2b3b40cc6faf7c1e427e924c69b16c74f3b72'
                     'SKIP')
 source_x86_64=(https://downloads.1password.com/linux/tar/beta/x86_64/1password-${_tarver}.x64.tar.gz{,.sig})
 source_aarch64=(https://downloads.1password.com/linux/tar/beta/aarch64/1password-${_tarver}.arm64.tar.gz{,.sig})
