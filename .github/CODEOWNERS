@@ -1,0 +1,5 @@
+# The leak gate and every workflow wait for Andrew's review (k7lab/maitrios#53).
+/.github/workflows/ @beyera
+/.github/CODEOWNERS @beyera
+/.github/leak-gate.sh @beyera
+/.github/leak-gate-ci.sh @beyera
