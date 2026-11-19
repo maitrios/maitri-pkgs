@@ -1,7 +1,7 @@
 # Maintainer: Kindness <c@k7.dev>
 # Contributor: Carmine Paolino <carmine@paolino.me>
 pkgname=hyprmoncfg
-pkgver=1.28.0
+pkgver=1.30.0
 pkgrel=1
 pkgdesc="Terminal-first monitor configurator and auto-switching daemon for Hyprland"
 arch=('x86_64' 'aarch64')
@@ -14,8 +14,8 @@ options=('!debug')
 # The deps archive holds the release's Go module cache, so the build is offline.
 source=("hyprmoncfg-${pkgver}.tar.gz::${url}/archive/refs/tags/v${pkgver}.tar.gz"
         "hyprmoncfg-${pkgver}-deps.tar.xz::${url}/releases/download/v${pkgver}/hyprmoncfg-${pkgver}-deps.tar.xz")
-sha256sums=('8542c43c708fff3308cf75abf8af20ee1170ce07044da398466847d187914a7c'
-            '456ee253b191737503d2af73dbd58574baffbaac3652e1e82c38d2b71a04a329')
+sha256sums=('1690ece4357f1313456d26d5cd5325c44494c7bd614d8fcd8f87b02ad4e85870'
+            'be5d3ba2f65148100e25f11ab06d49498ed486eb2a8b21206e28e3d481e9d30b')
 
 build() {
   cd "${srcdir}/${pkgname}-${pkgver}"
